@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/config"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/db"
 	cadencehttp "github.com/Rohithgilla12/cadence/cadence-api/internal/http"
 )
 
@@ -19,16 +20,23 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
 
-	cfg := config.Load()
-
-	server := &http.Server{
-		Addr:              fmt.Sprintf(":%d", cfg.Port),
-		Handler:           cadencehttp.NewRouter(),
-		ReadHeaderTimeout: 5 * time.Second,
-	}
+	cfg := config.MustLoad()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	pool, err := db.NewPool(ctx, cfg.DatabaseURL)
+	if err != nil {
+		logger.Error("db pool", "err", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
+	server := &http.Server{
+		Addr:              fmt.Sprintf(":%d", cfg.Port),
+		Handler:           cadencehttp.NewRouter(cadencehttp.Deps{Pool: pool}),
+		ReadHeaderTimeout: 5 * time.Second,
+	}
 
 	go func() {
 		logger.Info("cadence-api listening", "port", cfg.Port, "env", cfg.Environment)
@@ -40,7 +48,6 @@ func main() {
 
 	<-ctx.Done()
 	logger.Info("shutdown initiated")
-
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	if err := server.Shutdown(shutdownCtx); err != nil {
