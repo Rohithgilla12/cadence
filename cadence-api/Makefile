@@ -1,4 +1,4 @@
-.PHONY: run worker build test lint tidy fmt db-up db-down db-shell db-logs db-reset db-create-test
+.PHONY: run worker build test test-integration lint tidy fmt db-up db-down db-shell db-logs db-reset db-create-test migrate-up migrate-down migrate-test-up
 
 run:
 	go run ./cmd/api
@@ -12,6 +12,9 @@ build:
 
 test:
 	go test ./...
+
+test-integration: db-create-test migrate-test-up
+	go test -tags integration ./...
 
 lint:
 	golangci-lint run ./...
@@ -41,8 +44,6 @@ db-reset:
 
 db-create-test:
 	docker exec -i cadence-postgres-dev psql -U cadence -d postgres -c "CREATE DATABASE cadence_test;" || true
-
-.PHONY: migrate-up migrate-down migrate-test-up
 
 MIGRATE := migrate -path ./migrations
 
