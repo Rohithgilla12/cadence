@@ -52,6 +52,13 @@
             "useFrameworks": "static"
           }
         }
+      ],
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "Cadence reads sleep, mood-affecting activity, and workouts to learn which habits move your rhythm. Your health data stays on this device.",
+          "NSHealthUpdateUsageDescription": "Cadence does not write to Apple Health in this version."
+        }
       ]
     ],
     "experiments": {
