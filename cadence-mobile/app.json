@@ -15,10 +15,13 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "fun.gilla.cadence"
+      "bundleIdentifier": "fun.gilla.cadence",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "fun.gilla.cadence",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F4F3ED"
@@ -36,10 +39,31 @@
           "root": "./app"
         }
       ],
-      "expo-system-ui"
+      "expo-system-ui",
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      "@react-native-google-signin/google-signin",
+      "expo-apple-authentication",
+      "expo-secure-store",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "root": "./app"
+      },
+      "eas": {
+        "projectId": "9cfe9dc8-b0c9-4f6c-b96e-20f42b8b1532"
+      }
     }
   }
 }
