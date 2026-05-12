@@ -4,7 +4,7 @@ import { Card } from '@/components/primitives';
 import type { CheckIn, Mood } from '@/types';
 
 interface CheckInRowProps {
-  checkIn: CheckIn;
+  checkIn: CheckIn | null;
 }
 
 // Converts a decimal sleep value to a human-readable string.
@@ -52,13 +52,13 @@ function SleepSection({ sleepHours }: { sleepHours?: number }) {
 }
 
 export function CheckInRow({ checkIn }: CheckInRowProps) {
+  const ci = checkIn ?? {};
   return (
     <Card padding="md">
       <View className="flex-row">
-        <MoodSection mood={checkIn.mood} />
-        {/* Hairline divider separating the two columns */}
+        <MoodSection mood={ci.mood} />
         <View className="w-px bg-hairline mx-4" />
-        <SleepSection sleepHours={checkIn.sleepHours} />
+        <SleepSection sleepHours={ci.sleepHours} />
       </View>
     </Card>
   );

@@ -72,6 +72,19 @@ export default function TodayScreen() {
     },
   });
 
+  const todayIso = useMemo(() => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }, []);
+
+  const checkInQuery = useQuery({
+    queryKey: queryKeys.checkIn(todayIso),
+    queryFn: () => endpoints.getCheckIn(apiClient)(todayIso),
+  });
+
   const habits = useMemo(() => habitsQuery.data?.map(toHabit) ?? [], [habitsQuery.data]);
   const doneCount = useMemo(() => habits.filter((h) => h.doneToday).length, [habits]);
 
@@ -117,7 +130,10 @@ export default function TodayScreen() {
       )}
 
       <SectionLabel label="TODAY" />
-      <CheckInRow checkIn={{}} />
+      <CheckInRow checkIn={checkInQuery.data ? {
+        mood: checkInQuery.data.mood,
+        sleepHours: checkInQuery.data.sleepHours,
+      } : null} />
 
       <View className="mt-6">
         <Button label="Add a habit" variant="ghost" onPress={() => {}} />
