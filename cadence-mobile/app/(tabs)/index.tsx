@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
@@ -44,6 +45,7 @@ function toHabit(api: ApiHabit): Habit {
 }
 
 export default function TodayScreen() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const habitsQuery = useQuery({
     queryKey: queryKeys.habits,
@@ -136,7 +138,11 @@ export default function TodayScreen() {
       } : null} />
 
       <View className="mt-6">
-        <Button label="Add a habit" variant="ghost" onPress={() => {}} />
+        <Button
+          label="Add a practice"
+          variant="ghost"
+          onPress={() => router.push('/add-habit')}
+        />
       </View>
     </Screen>
   );

@@ -53,7 +53,15 @@ export default function RootLayout() {
                   headerShown: false,
                   contentStyle: { backgroundColor: colors.bg },
                 }}
-              />
+              >
+                <Stack.Screen
+                  name="add-habit"
+                  options={{
+                    presentation: 'modal',
+                    animation: 'slide_from_bottom',
+                  }}
+                />
+              </Stack>
             </AuthGate>
             <StatusBar style="dark" />
           </AuthProvider>
