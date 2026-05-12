@@ -29,6 +29,14 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	// Apply migrations before opening the pool — keeps schema-up-to-date
+	// invariant tight and surfaces migration failures as fatal startup errors.
+	if err := db.ApplyMigrations(cfg.DatabaseURL); err != nil {
+		logger.Error("migrations", "err", err)
+		os.Exit(1)
+	}
+	logger.Info("migrations applied")
+
 	pool, err := db.NewPool(ctx, cfg.DatabaseURL)
 	if err != nil {
 		logger.Error("db pool", "err", err)

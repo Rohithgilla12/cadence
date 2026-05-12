@@ -45,7 +45,7 @@ db-reset:
 db-create-test:
 	docker exec -i cadence-postgres-dev psql -U cadence -d postgres -c "CREATE DATABASE cadence_test;" || true
 
-MIGRATE := migrate -path ./migrations
+MIGRATE := migrate -path ./internal/db/migrations
 
 migrate-up:
 	$(MIGRATE) -database "$$DATABASE_URL" up
