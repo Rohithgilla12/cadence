@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, View, Text } from 'react-native';
 import { IconCheck } from '@tabler/icons-react-native';
 import { StreakPill } from './StreakPill';
@@ -8,16 +8,25 @@ import type { Habit } from '@/types';
 
 interface HabitRowProps {
   habit: Habit;
-  onToggle?: (next: boolean) => void;
+  onToggle?: (next: boolean) => void | Promise<void>;
 }
 
 export function HabitRow({ habit, onToggle }: HabitRowProps) {
-  const [isDone, setIsDone] = useState(habit.done);
+  const [isDone, setIsDone] = useState(habit.doneToday);
 
-  function handlePress() {
+  // Reconcile local state when server state changes (e.g., after a mutation settles).
+  useEffect(() => {
+    setIsDone(habit.doneToday);
+  }, [habit.doneToday]);
+
+  async function handlePress() {
     const next = !isDone;
     setIsDone(next);
-    onToggle?.(next);
+    try {
+      await onToggle?.(next);
+    } catch {
+      setIsDone(!next); // revert on failure — quiet, no alert
+    }
   }
 
   const HabitIcon = iconFor[habit.icon];

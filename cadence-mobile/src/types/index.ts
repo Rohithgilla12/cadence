@@ -1,5 +1,7 @@
+import type { ApiTimeOfDay, ApiTarget } from '@/lib/api/types';
+
 export type Mood = 1 | 2 | 3 | 4 | 5;
-export type TimeOfDay = 'morning' | 'midday' | 'evening' | 'anytime';
+export type TimeOfDay = ApiTimeOfDay;
 export type HabitSource = 'manual' | 'apple_health' | 'health_connect' | 'strava';
 
 export interface Habit {
@@ -7,11 +9,10 @@ export interface Habit {
   name: string;
   icon: string;
   timeOfDay: TimeOfDay;
-  target?: { value: number; unit: string };
-  done: boolean;
+  target?: ApiTarget;
+  doneToday: boolean;
   streak: number;
-  source: HabitSource;
-  autoDetected?: boolean;
+  autoDetected: boolean;
 }
 
 export type DayState = 'past-done' | 'past-quiet' | 'today' | 'future';
