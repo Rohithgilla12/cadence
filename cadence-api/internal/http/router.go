@@ -7,6 +7,7 @@ import (
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/auth"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/checkin"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/habit"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/user"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -16,6 +17,7 @@ type Deps struct {
 	Pool      *pgxpool.Pool
 	Verifier  auth.Verifier
 	Resolver  auth.UserResolver
+	Users     *user.Repository
 	Habits    *habit.Repository
 	HabitLogs *habit.LogRepository
 	CheckIns  *checkin.Repository
@@ -34,6 +36,7 @@ func NewRouter(deps Deps) http.Handler {
 	r.Route("/v1", func(r chi.Router) {
 		r.Use(auth.RequireAuth(deps.Verifier, deps.Resolver))
 		r.Get("/me", GetMe)
+		r.Patch("/me", PatchMe(deps.Users))
 
 		habits := newHabitsHandler(deps.Habits, deps.HabitLogs)
 		r.Get("/habits", habits.list)

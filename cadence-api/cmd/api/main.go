@@ -54,6 +54,7 @@ func main() {
 			Pool:      pool,
 			Verifier:  verifier,
 			Resolver:  resolver,
+			Users:     repo,
 			Habits:    habitRepo,
 			HabitLogs: habitLogRepo,
 			CheckIns:  checkInRepo,

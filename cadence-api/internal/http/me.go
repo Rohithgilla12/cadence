@@ -5,32 +5,71 @@ import (
 	"net/http"
 
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/auth"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/user"
 )
 
 type meResponse struct {
-	ID          string   `json:"id"`
-	FirebaseUID string   `json:"firebaseUid"`
-	Email       string   `json:"email"`
-	DisplayName string   `json:"displayName"`
-	Handle      string   `json:"handle"`
-	Intent      string   `json:"intent"`
-	Pillars     []string `json:"pillars"`
+	ID                  string   `json:"id"`
+	FirebaseUID         string   `json:"firebaseUid"`
+	Email               string   `json:"email"`
+	DisplayName         string   `json:"displayName"`
+	Handle              string   `json:"handle"`
+	Intent              string   `json:"intent"`
+	Pillars             []string `json:"pillars"`
+	OnboardingCompleted bool     `json:"onboardingCompleted"`
+}
+
+func toMeResponse(u user.User) meResponse {
+	return meResponse{
+		ID:                  u.ID.String(),
+		FirebaseUID:         u.FirebaseUID,
+		Email:               u.Email,
+		DisplayName:         u.DisplayName,
+		Handle:              u.Handle,
+		Intent:              u.Intent,
+		Pillars:             u.Pillars,
+		OnboardingCompleted: u.Intent != "",
+	}
 }
 
 func GetMe(w http.ResponseWriter, r *http.Request) {
 	u, ok := auth.UserFromContext(r.Context())
 	if !ok {
-		http.Error(w, "no user in context", http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "no user in context")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(meResponse{
-		ID:          u.ID.String(),
-		FirebaseUID: u.FirebaseUID,
-		Email:       u.Email,
-		DisplayName: u.DisplayName,
-		Handle:      u.Handle,
-		Intent:      u.Intent,
-		Pillars:     u.Pillars,
-	})
+	writeJSON(w, http.StatusOK, toMeResponse(u))
+}
+
+type patchMeRequest struct {
+	Intent      *string   `json:"intent,omitempty"`
+	Pillars     *[]string `json:"pillars,omitempty"`
+	DisplayName *string   `json:"displayName,omitempty"`
+}
+
+func PatchMe(users *user.Repository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		u, ok := auth.UserFromContext(r.Context())
+		if !ok {
+			writeError(w, http.StatusInternalServerError, "no user in context")
+			return
+		}
+		dec := json.NewDecoder(r.Body)
+		dec.DisallowUnknownFields()
+		var req patchMeRequest
+		if err := dec.Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		updated, err := users.UpdateProfile(r.Context(), u.ID, user.UpdateProfileInput{
+			Intent:      req.Intent,
+			Pillars:     req.Pillars,
+			DisplayName: req.DisplayName,
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "update failed")
+			return
+		}
+		writeJSON(w, http.StatusOK, toMeResponse(updated))
+	}
 }
