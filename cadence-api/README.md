@@ -65,6 +65,7 @@ make test-integration     # real Postgres
 | DELETE | /v1/habits/:id                | Soft archive (sets `archived_at`) |
 | GET    | /v1/check-ins/:date           | `YYYY-MM-DD`; `{checkIn: null}` if absent |
 | PUT    | /v1/check-ins/:date           | Partial upsert — null fields preserved |
+| PATCH  | /v1/me                        | Partial update of intent, pillars, displayName |
 
 ## Phase status
 
@@ -73,6 +74,7 @@ make test-integration     # real Postgres
 - [x] Phase 1: Firebase Admin SDK + RequireAuth middleware
 - [x] Phase 1: Implicit user creation + /v1/me
 - [x] Phase 1: Habit + check-in CRUD endpoints
-- [ ] Phase 1: Onboarding (intent, pillars, first habits)
+- [x] Phase 1: Onboarding write-side (PATCH /v1/me + onboardingCompleted flag)
+- [ ] Phase 1: Onboarding UI
 - [ ] Phase 1: Mobile wires real data
 - [ ] Phase 2+: see PRD §17
