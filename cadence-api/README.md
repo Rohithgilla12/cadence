@@ -12,10 +12,11 @@ cmd/
   worker/     # Cron worker entry (correlation engine, Phase 3)
 internal/
   auth/       # Firebase token verification middleware
+  checkin/    # Check-in domain (mood, sleep)
   circle/     # Circles domain
   config/     # Env config loader
   db/         # Postgres queries
-  habit/      # Habit domain
+  habit/      # Habit domain (definitions + logs + streak)
   health/     # Apple Health / Strava adapters
   http/       # Routing, handlers, middleware
   insight/    # Correlation engine, templates
@@ -52,11 +53,26 @@ make test                 # unit tests
 make test-integration     # real Postgres
 ```
 
+## Endpoints (Phase 1)
+
+| Method | Path                          | Notes |
+|--------|-------------------------------|-------|
+| GET    | /health                       | Public; reports DB status |
+| GET    | /v1/me                        | Returns the current user |
+| GET    | /v1/habits                    | Live habits with `doneToday` + `streak` |
+| POST   | /v1/habits                    | `{name, icon, timeOfDay, target?, trackContext}` |
+| POST   | /v1/habits/:id/toggle         | Flips today's log, returns updated DTO |
+| DELETE | /v1/habits/:id                | Soft archive (sets `archived_at`) |
+| GET    | /v1/check-ins/:date           | `YYYY-MM-DD`; `{checkIn: null}` if absent |
+| PUT    | /v1/check-ins/:date           | Partial upsert — null fields preserved |
+
 ## Phase status
 
 - [x] Phase 1: HTTP scaffold, /health
 - [x] Phase 1: Postgres dev infra + Phase 1 schema migration
 - [x] Phase 1: Firebase Admin SDK + RequireAuth middleware
 - [x] Phase 1: Implicit user creation + /v1/me
-- [ ] Phase 1: Habit / check-in CRUD endpoints
+- [x] Phase 1: Habit + check-in CRUD endpoints
+- [ ] Phase 1: Onboarding (intent, pillars, first habits)
+- [ ] Phase 1: Mobile wires real data
 - [ ] Phase 2+: see PRD §17
