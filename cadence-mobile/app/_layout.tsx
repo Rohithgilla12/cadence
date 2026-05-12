@@ -2,12 +2,16 @@ import '../global.css';
 
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth, configureGoogleSignIn } from '@/lib/auth';
+import { endpoints } from '@/lib/api';
+import { queryKeys } from '@/lib/api/queryKeys';
+import { apiClient } from '@/lib/client';
 import { QueryProvider } from '@/lib/query';
 import { colors } from '@/theme/tokens';
 
@@ -21,17 +25,38 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const segments = useSegments();
   const router = useRouter();
 
+  const meQuery = useQuery({
+    queryKey: queryKeys.me,
+    queryFn: endpoints.getMe(apiClient),
+    enabled: status === 'signed-in',
+  });
+
   useEffect(() => {
     if (status === 'loading') return;
-    const inAuthGroup = segments[0] === '(tabs)';
-    if (status === 'signed-out' && inAuthGroup) {
-      router.replace('/sign-in');
-    } else if (status === 'signed-in' && segments[0] === 'sign-in') {
+    const root = segments[0];
+    const inTabs = root === '(tabs)';
+    const inOnboarding = root === 'onboarding';
+
+    if (status === 'signed-out') {
+      if (inTabs || inOnboarding) router.replace('/sign-in');
+      return;
+    }
+
+    if (root === 'sign-in') {
+      router.replace('/');
+      return;
+    }
+
+    if (meQuery.isLoading || !meQuery.data) return;
+
+    if (!meQuery.data.onboardingCompleted && !inOnboarding) {
+      router.replace('/onboarding/intent');
+    } else if (meQuery.data.onboardingCompleted && inOnboarding) {
       router.replace('/');
     }
-  }, [status, segments, router]);
+  }, [status, segments, router, meQuery.isLoading, meQuery.data]);
 
-  if (status === 'loading') {
+  if (status === 'loading' || (status === 'signed-in' && meQuery.isLoading)) {
     return (
       <View className="flex-1 items-center justify-center bg-bg">
         <ActivityIndicator color={colors.moss} />
