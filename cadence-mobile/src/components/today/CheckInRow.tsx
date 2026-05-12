@@ -1,4 +1,5 @@
-import { View, Text } from 'react-native';
+import { Pressable, View, Text } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import { Card } from '@/components/primitives';
 import type { CheckIn, Mood } from '@/types';
@@ -65,13 +66,22 @@ function SleepSection({ manualHours, fallbackHours }: SleepSectionProps) {
 
 export function CheckInRow({ checkIn, healthSleepHours }: CheckInRowProps) {
   const ci = checkIn ?? {};
+  const router = useRouter();
+
   return (
     <Card padding="md">
-      <View className="flex-row">
-        <MoodSection mood={ci.mood} />
-        <View className="w-px bg-hairline mx-4" />
-        <SleepSection manualHours={ci.sleepHours} fallbackHours={healthSleepHours} />
-      </View>
+      <Pressable
+        onPress={() => router.push({ pathname: '/check-in' })}
+        accessibilityRole="button"
+        accessibilityLabel="Edit today's check-in"
+        style={({ pressed }) => (pressed ? { opacity: 0.9 } : undefined)}
+      >
+        <View className="flex-row">
+          <MoodSection mood={ci.mood} />
+          <View className="w-px bg-hairline mx-4" />
+          <SleepSection manualHours={ci.sleepHours} fallbackHours={healthSleepHours} />
+        </View>
+      </Pressable>
     </Card>
   );
 }
