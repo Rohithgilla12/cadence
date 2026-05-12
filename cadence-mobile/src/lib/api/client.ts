@@ -23,6 +23,9 @@ export class ApiClient {
       const text = await response.text().catch(() => '');
       throw new ApiError(response.status, text);
     }
+    if (response.status === 204) {
+      return null as T;
+    }
     return (await response.json()) as T;
   }
 }
