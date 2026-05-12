@@ -23,36 +23,40 @@ migrations/   # golang-migrate SQL files
 deploy/       # docker-compose, Portainer, cloudflared config
 ```
 
-## Run locally
+## Local runbook
+
+One-time setup:
 
 ```bash
 cp .env.example .env
-make run        # API on :8080
-make worker     # one-shot worker (correlation engine, stubbed today)
+# place the Firebase Admin SDK JSON at ./firebase-admin.local.json (gitignored)
+make db-up
+make db-create-test
+make migrate-up
+make migrate-test-up
 ```
 
-Smoke test:
+Run the API:
 
 ```bash
-curl http://localhost:8080/health
+set -a; source .env; set +a
+make run
+curl -s localhost:8080/health | jq      # status + database
+curl -s -H "Authorization: Bearer <firebase-id-token>" localhost:8080/v1/me | jq
 ```
 
-## Common tasks
+Tests:
 
 ```bash
-make build      # binaries to ./bin/
-make test       # go test ./...
-make lint       # golangci-lint
-make fmt        # gofmt -s
-make tidy       # go mod tidy
+make test                 # unit tests
+make test-integration     # real Postgres
 ```
 
 ## Phase status
 
-- [x] Phase 1: HTTP scaffold, /health, project layout
-- [ ] Phase 1: Postgres + migrations
-- [ ] Phase 1: Firebase Auth middleware
-- [ ] Phase 1: Habit/check-in endpoints
+- [x] Phase 1: HTTP scaffold, /health
+- [x] Phase 1: Postgres dev infra + Phase 1 schema migration
+- [x] Phase 1: Firebase Admin SDK + RequireAuth middleware
+- [x] Phase 1: Implicit user creation + /v1/me
+- [ ] Phase 1: Habit / check-in CRUD endpoints
 - [ ] Phase 2+: see PRD §17
-
-· · ·
