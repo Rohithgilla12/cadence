@@ -1,18 +1,19 @@
-import React from 'react';
 import { View, Text } from 'react-native';
+
 import { Card } from '@/components/primitives';
 import type { CheckIn, Mood } from '@/types';
 
 interface CheckInRowProps {
   checkIn: CheckIn | null;
+  // Provided when Apple Health is connected and has sleep data for today.
+  // Used only when checkIn.sleepHours is undefined — the user's manual log
+  // is always canonical (CLAUDE.md "never auto-uncheck").
+  healthSleepHours?: number;
 }
 
-// Converts a decimal sleep value to a human-readable string.
-// 7.5 → "7h 30m", 8.0 → "8h", 7.25 → "7h 15m"
 function formatSleepHours(hours: number): string {
   const wholeHours = Math.floor(hours);
   const minutes = Math.round((hours - wholeHours) * 60);
-
   if (minutes === 0) return `${wholeHours}h`;
   return `${wholeHours}h ${minutes}m`;
 }
@@ -36,14 +37,25 @@ function MoodSection({ mood }: { mood?: Mood }) {
   );
 }
 
-function SleepSection({ sleepHours }: { sleepHours?: number }) {
+interface SleepSectionProps {
+  manualHours?: number;
+  fallbackHours?: number;
+}
+
+function SleepSection({ manualHours, fallbackHours }: SleepSectionProps) {
+  const hours = manualHours ?? fallbackHours;
+  const fromHealth = manualHours === undefined && fallbackHours !== undefined;
+
   return (
     <View className="flex-1">
       <Text className="text-eyebrow text-ink-3 uppercase mb-2">SLEEP</Text>
-      {sleepHours !== undefined ? (
-        <Text className="text-h3 font-serif text-ink">
-          {formatSleepHours(sleepHours)}
-        </Text>
+      {hours !== undefined ? (
+        <>
+          <Text className="text-h3 font-serif text-ink">{formatSleepHours(hours)}</Text>
+          {fromHealth ? (
+            <Text className="text-caption text-ink-3 mt-1">from Apple Health</Text>
+          ) : null}
+        </>
       ) : (
         <Text className="text-body text-ink-3">—</Text>
       )}
@@ -51,14 +63,14 @@ function SleepSection({ sleepHours }: { sleepHours?: number }) {
   );
 }
 
-export function CheckInRow({ checkIn }: CheckInRowProps) {
+export function CheckInRow({ checkIn, healthSleepHours }: CheckInRowProps) {
   const ci = checkIn ?? {};
   return (
     <Card padding="md">
       <View className="flex-row">
         <MoodSection mood={ci.mood} />
         <View className="w-px bg-hairline mx-4" />
-        <SleepSection sleepHours={ci.sleepHours} />
+        <SleepSection manualHours={ci.sleepHours} fallbackHours={healthSleepHours} />
       </View>
     </Card>
   );

@@ -11,6 +11,7 @@ import { WeekStrip, CheckInRow } from '@/components/today';
 import { endpoints } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queryKeys';
 import { apiClient } from '@/lib/client';
+import { getStatus, readDailySummary } from '@/lib/health';
 import { colors } from '@/theme/tokens';
 import { mockInsight, mockWeek } from '@/lib/mockData';
 import type { ApiHabit } from '@/lib/api/types';
@@ -87,6 +88,19 @@ export default function TodayScreen() {
     queryFn: () => endpoints.getCheckIn(apiClient)(todayIso),
   });
 
+  const healthStatusQuery = useQuery({
+    queryKey: ['health-status'],
+    queryFn: getStatus,
+    staleTime: 60_000,
+  });
+
+  const dailySummaryQuery = useQuery({
+    queryKey: ['health-summary', todayIso],
+    queryFn: () => readDailySummary(new Date()),
+    enabled: healthStatusQuery.data === 'authorized',
+    staleTime: 5 * 60_000,
+  });
+
   const habits = useMemo(() => habitsQuery.data?.map(toHabit) ?? [], [habitsQuery.data]);
   const doneCount = useMemo(() => habits.filter((h) => h.doneToday).length, [habits]);
 
@@ -132,10 +146,13 @@ export default function TodayScreen() {
       )}
 
       <SectionLabel label="TODAY" />
-      <CheckInRow checkIn={checkInQuery.data ? {
-        mood: checkInQuery.data.mood,
-        sleepHours: checkInQuery.data.sleepHours,
-      } : null} />
+      <CheckInRow
+        checkIn={checkInQuery.data ? {
+          mood: checkInQuery.data.mood,
+          sleepHours: checkInQuery.data.sleepHours,
+        } : null}
+        healthSleepHours={dailySummaryQuery.data?.sleepHours}
+      />
 
       <View className="mt-6">
         <Button
