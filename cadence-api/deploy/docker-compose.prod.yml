@@ -1,0 +1,69 @@
+# Production stack for Cadence API.
+# Deploys via Portainer as a stack; secrets injected via Portainer's UI.
+# See ../DEPLOY.md for the full runbook.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: cadence-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cadence
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: cadence
+    volumes:
+      - cadence-pgdata:/var/lib/postgresql/data
+    networks:
+      - cadence-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cadence -d cadence"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  cadence-api:
+    # CADENCE_IMAGE is set in .env to a specific :sha tag for reproducible
+    # rollbacks. Falls back to :latest only for first-deploy convenience.
+    image: ${CADENCE_IMAGE:-ghcr.io/rohithgilla12/cadence-api:latest}
+    container_name: cadence-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: "8080"
+      CADENCE_ENV: production
+      DATABASE_URL: postgres://cadence:${POSTGRES_PASSWORD}@postgres:5432/cadence?sslmode=disable
+      FIREBASE_CREDENTIALS: /etc/cadence/firebase-admin.json
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    volumes:
+      # Bind-mount the Firebase service account JSON from the host. Path on
+      # the VPS is documented in DEPLOY.md.
+      - ${FIREBASE_CREDENTIALS_HOST_PATH:?FIREBASE_CREDENTIALS_HOST_PATH is required}:/etc/cadence/firebase-admin.json:ro
+    networks:
+      - cadence-internal
+
+  # Outbound-only tunnel — no inbound ports opened on the VPS. Token mode
+  # means tunnel routing is configured in the Cloudflare Zero Trust dashboard
+  # (api.cadence.gilla.fun -> http://cadence-api:8080), not in a config file.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cadence-cloudflared
+    restart: unless-stopped
+    depends_on:
+      - cadence-api
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARED_TUNNEL_TOKEN:?CLOUDFLARED_TUNNEL_TOKEN is required}
+    networks:
+      - cadence-internal
+
+volumes:
+  cadence-pgdata:
+    name: cadence-pgdata
+
+networks:
+  cadence-internal:
+    name: cadence-internal
+    driver: bridge
