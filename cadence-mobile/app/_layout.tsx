@@ -86,6 +86,13 @@ export default function RootLayout() {
                     animation: 'slide_from_bottom',
                   }}
                 />
+                <Stack.Screen
+                  name="check-in"
+                  options={{
+                    presentation: 'modal',
+                    animation: 'slide_from_bottom',
+                  }}
+                />
               </Stack>
             </AuthGate>
             <StatusBar style="dark" />
