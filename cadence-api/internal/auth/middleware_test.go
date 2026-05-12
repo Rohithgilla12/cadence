@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/auth"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/db"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/user"
 )
 
 type stubVerifier struct {
@@ -68,6 +70,30 @@ func TestRequireAuth_PassesIdentityToHandler(t *testing.T) {
 		}
 		if got != want {
 			t.Fatalf("got %+v want %+v", got, want)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer something")
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("got %d want 200", rec.Code)
+	}
+}
+
+func TestRequireAuth_ResolvesUserViaResolver(t *testing.T) {
+	pool := db.TestPool(t)
+	db.Truncate(t, pool, "users")
+	repo := user.NewRepository(pool)
+
+	verifier := stubVerifier{identity: auth.Identity{FirebaseUID: "uid-resolve", Email: "r@x.com"}}
+	mw := auth.RequireAuth(verifier, auth.UserResolverFromRepository(repo))
+
+	h := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		u, ok := auth.UserFromContext(r.Context())
+		if !ok || u.FirebaseUID != "uid-resolve" {
+			t.Fatalf("user not in context: %+v ok=%v", u, ok)
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
