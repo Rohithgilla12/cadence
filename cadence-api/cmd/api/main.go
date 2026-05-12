@@ -11,9 +11,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/auth"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/config"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/db"
 	cadencehttp "github.com/Rohithgilla12/cadence/cadence-api/internal/http"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/user"
 )
 
 func main() {
@@ -32,9 +34,21 @@ func main() {
 	}
 	defer pool.Close()
 
+	verifier, err := auth.NewFirebaseVerifier(ctx, cfg.FirebaseCredentials)
+	if err != nil {
+		logger.Error("firebase verifier", "err", err)
+		os.Exit(1)
+	}
+	repo := user.NewRepository(pool)
+	resolver := auth.UserResolverFromRepository(repo)
+
 	server := &http.Server{
-		Addr:              fmt.Sprintf(":%d", cfg.Port),
-		Handler:           cadencehttp.NewRouter(cadencehttp.Deps{Pool: pool}),
+		Addr: fmt.Sprintf(":%d", cfg.Port),
+		Handler: cadencehttp.NewRouter(cadencehttp.Deps{
+			Pool:     pool,
+			Verifier: verifier,
+			Resolver: resolver,
+		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
