@@ -1,0 +1,46 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Node / Expo
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+*.tsbuildinfo
+
+# Go
+*.exe
+*.test
+*.out
+vendor/
+bin/
+tmp/
+
+# Secrets / creds
+*.pem
+*.key
+creds.json
+service-account*.json
+firebase-admin*.json
+
+# Generated
+coverage/
