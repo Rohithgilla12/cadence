@@ -5,6 +5,7 @@ import type {
   GetCheckInResponse,
   ListHabitsResponse,
   Me,
+  UpdateMeInput,
 } from './types';
 
 interface CreateHabitInput {
@@ -17,6 +18,12 @@ interface CreateHabitInput {
 
 export const endpoints = {
   getMe: (client: ApiClient) => () => client.request<Me>('/v1/me'),
+
+  updateMe: (client: ApiClient) => (input: UpdateMeInput) =>
+    client.request<Me>('/v1/me', {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
 
   listHabits: (client: ApiClient) => () =>
     client.request<ListHabitsResponse>('/v1/habits').then((r) => r.habits),

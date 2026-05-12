@@ -6,6 +6,13 @@ export interface Me {
   handle: string;
   intent: string;
   pillars: string[];
+  onboardingCompleted: boolean;
+}
+
+export interface UpdateMeInput {
+  intent?: string;
+  pillars?: string[];
+  displayName?: string;
 }
 
 export class ApiError extends Error {
