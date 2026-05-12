@@ -78,3 +78,56 @@ func TestGetOrCreateByFirebaseUID_DoesNotOverwriteDisplayName(t *testing.T) {
 		t.Fatalf("display name overwritten: %q", got.DisplayName)
 	}
 }
+
+func TestUpdateProfile_PartialFieldsPreserveOthers(t *testing.T) {
+	pool := db.TestPool(t)
+	db.Truncate(t, pool, "users")
+	repo := user.NewRepository(pool)
+	ctx := context.Background()
+
+	created, err := repo.GetOrCreateByFirebaseUID(ctx, user.NewUserInput{
+		FirebaseUID: "uid-upd",
+		Email:       "u@x.com",
+		DisplayName: "Original",
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	intent := "train_honestly"
+	pillars := []string{"movement", "rest"}
+	updated, err := repo.UpdateProfile(ctx, created.ID, user.UpdateProfileInput{
+		Intent:  &intent,
+		Pillars: &pillars,
+	})
+	if err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	if updated.Intent != "train_honestly" {
+		t.Fatalf("intent: %q", updated.Intent)
+	}
+	if len(updated.Pillars) != 2 || updated.Pillars[0] != "movement" {
+		t.Fatalf("pillars: %+v", updated.Pillars)
+	}
+	if updated.DisplayName != "Original" {
+		t.Fatalf("display name overwritten: %q", updated.DisplayName)
+	}
+
+	// Second update - only displayName.
+	newName := "Renamed"
+	updated2, err := repo.UpdateProfile(ctx, created.ID, user.UpdateProfileInput{
+		DisplayName: &newName,
+	})
+	if err != nil {
+		t.Fatalf("update2: %v", err)
+	}
+	if updated2.DisplayName != "Renamed" {
+		t.Fatalf("display name: %q", updated2.DisplayName)
+	}
+	if updated2.Intent != "train_honestly" {
+		t.Fatalf("intent cleared: %q", updated2.Intent)
+	}
+	if len(updated2.Pillars) != 2 {
+		t.Fatalf("pillars cleared: %+v", updated2.Pillars)
+	}
+}

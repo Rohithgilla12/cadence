@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -67,6 +68,35 @@ func (r *Repository) GetOrCreateByFirebaseUID(ctx context.Context, input NewUser
 	if err := row.Scan(&u.ID, &u.FirebaseUID, &u.Email, &u.DisplayName,
 		&u.Handle, &u.Intent, &u.Pillars, &u.CreatedAt, &u.UpdatedAt); err != nil {
 		return User{}, fmt.Errorf("insert user: %w", err)
+	}
+	return u, nil
+}
+
+type UpdateProfileInput struct {
+	Intent      *string
+	Pillars     *[]string
+	DisplayName *string
+}
+
+func (r *Repository) UpdateProfile(ctx context.Context, id uuid.UUID, in UpdateProfileInput) (User, error) {
+	// Partial update via COALESCE so nil fields preserve existing values.
+	row := r.pool.QueryRow(ctx, `
+		UPDATE users SET
+			intent       = COALESCE($2, intent),
+			pillars      = COALESCE($3, pillars),
+			display_name = COALESCE($4, display_name),
+			updated_at   = now()
+		WHERE id = $1 AND deleted_at IS NULL
+		RETURNING id, firebase_uid, COALESCE(email,''), COALESCE(display_name,''),
+		          COALESCE(handle,''), COALESCE(intent,''), pillars, created_at, updated_at
+	`, id, in.Intent, in.Pillars, in.DisplayName)
+	var u User
+	if err := row.Scan(&u.ID, &u.FirebaseUID, &u.Email, &u.DisplayName,
+		&u.Handle, &u.Intent, &u.Pillars, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return User{}, ErrNotFound
+		}
+		return User{}, fmt.Errorf("update profile: %w", err)
 	}
 	return u, nil
 }
