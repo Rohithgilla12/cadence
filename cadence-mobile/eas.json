@@ -34,7 +34,8 @@
     "production": {
       "ios": {
         "appleId": "gillarohith@gmail.com",
-        "appleTeamId": "7D2V3RM56T"
+        "appleTeamId": "7D2V3RM56T",
+        "ascAppId": "6768877171"
       }
     }
   }
