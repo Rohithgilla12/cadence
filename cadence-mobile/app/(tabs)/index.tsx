@@ -112,18 +112,32 @@ export default function TodayScreen() {
     staleTime: 5 * 60_000,
   });
 
-  // Fetch the current week's workouts so the training card can render its
-  // mileage + week-bars without making the Running screen the only entry
-  // point. Range is Mon-of-this-week → now. Cheap (one bridge call) and the
-  // result feeds both the card and a tappable handoff to /running.
+  // Fetch a 6-week window of workouts. The training card shows mileage for
+  // this week, but uses the broader window to decide whether to render at
+  // all — a quiet week shouldn't hide the entry point if the user has runs
+  // in their history. Matches the Running screen's TREND_WEEKS so the two
+  // queries share a cache key when ranges align.
   const weekStart = useMemo(() => startOfWeek(new Date()), []);
-  const weekWorkoutsQuery = useQuery({
-    queryKey: ['health-workouts-week', weekStart.toISOString()],
-    queryFn: () => readWorkoutsRange(weekStart, new Date()),
+  const recentWindowStart = useMemo(() => {
+    const start = new Date(weekStart);
+    start.setDate(start.getDate() - 5 * 7);
+    return start;
+  }, [weekStart]);
+  const recentWorkoutsQuery = useQuery({
+    queryKey: ['health-workouts-recent', recentWindowStart.toISOString()],
+    queryFn: () => readWorkoutsRange(recentWindowStart, new Date()),
     enabled: healthStatusQuery.data === 'authorized',
     staleTime: 5 * 60_000,
   });
-  const weekRuns = useMemo(() => filterRuns(weekWorkoutsQuery.data ?? []), [weekWorkoutsQuery.data]);
+  const recentRuns = useMemo(
+    () => filterRuns(recentWorkoutsQuery.data ?? []),
+    [recentWorkoutsQuery.data],
+  );
+  const weekStartMs = weekStart.getTime();
+  const weekRuns = useMemo(
+    () => recentRuns.filter((run) => new Date(run.startsAt).getTime() >= weekStartMs),
+    [recentRuns, weekStartMs],
+  );
   const weekDailyMeters = useMemo(
     () => dailyMetersForWeek(weekRuns, weekStart),
     [weekRuns, weekStart],
@@ -132,7 +146,10 @@ export default function TodayScreen() {
     () => weekDailyMeters.reduce((a, b) => a + b, 0),
     [weekDailyMeters],
   );
-  const hasAnyRuns = weekRuns.length > 0;
+  // Card stays visible whenever the user has a running history in our window,
+  // even if this week is empty. That preserves the entry to /running on
+  // recovery weeks.
+  const hasAnyRuns = recentRuns.length > 0;
 
   const habits = useMemo(() => habitsQuery.data?.map(toHabit) ?? [], [habitsQuery.data]);
   const doneCount = useMemo(() => habits.filter((h) => h.doneToday).length, [habits]);
@@ -196,6 +213,7 @@ export default function TodayScreen() {
             weekDailyMeters={weekDailyMeters}
             todayWeekdayIndex={currentWeekdayIndex()}
             runCountThisWeek={weekRuns.length}
+            lastRunAt={recentRuns[0]?.startsAt}
             onPress={() => router.push('/running')}
           />
         </View>

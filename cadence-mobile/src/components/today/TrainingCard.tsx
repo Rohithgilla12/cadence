@@ -10,7 +10,19 @@ interface TrainingCardProps {
   weekDailyMeters: ReadonlyArray<number>;
   todayWeekdayIndex: number;
   runCountThisWeek: number;
+  // ISO timestamp of the most recent run anywhere in our window. Used to
+  // soften the card on quiet weeks rather than show a stark "0 km".
+  lastRunAt?: string;
   onPress: () => void;
+}
+
+function daysAgo(iso: string): number {
+  const then = new Date(iso);
+  const now = new Date();
+  const dayMs = 24 * 60 * 60 * 1000;
+  const a = new Date(then.getFullYear(), then.getMonth(), then.getDate()).getTime();
+  const b = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  return Math.max(0, Math.round((b - a) / dayMs));
 }
 
 function formatKm(meters: number): string {
@@ -28,8 +40,12 @@ export function TrainingCard({
   weekDailyMeters,
   todayWeekdayIndex,
   runCountThisWeek,
+  lastRunAt,
   onPress,
 }: TrainingCardProps) {
+  const isQuietWeek = weekTotalMeters === 0;
+  const sinceLast = lastRunAt ? daysAgo(lastRunAt) : null;
+
   return (
     <Pressable
       onPress={onPress}
@@ -47,11 +63,21 @@ export function TrainingCard({
         </View>
         <View className="flex-row items-baseline justify-between mb-3">
           <Text className="text-h2 font-serif text-ink">
-            {weekTotalMeters > 0 ? formatKm(weekTotalMeters) : '0 km'}
+            {isQuietWeek ? 'Resting' : formatKm(weekTotalMeters)}
           </Text>
-          <Text className="text-caption text-ink-3">
-            {runCountThisWeek} {runCountThisWeek === 1 ? 'run' : 'runs'}
-          </Text>
+          {isQuietWeek && sinceLast !== null ? (
+            <Text className="text-caption text-ink-3">
+              {sinceLast === 0
+                ? 'last run earlier today'
+                : sinceLast === 1
+                  ? 'last run yesterday'
+                  : `last run ${sinceLast} days ago`}
+            </Text>
+          ) : (
+            <Text className="text-caption text-ink-3">
+              {runCountThisWeek} {runCountThisWeek === 1 ? 'run' : 'runs'}
+            </Text>
+          )}
         </View>
         <WeekBars
           values={weekDailyMeters.map((meters) => meters / 1000)}
