@@ -23,6 +23,12 @@ RUN CGO_ENABLED=0 GOOS=linux \
 # no busybox. The binary runs as the 'nonroot' user (uid 65532) by default.
 FROM gcr.io/distroless/static-debian12:nonroot
 
+# OCI labels: GHCR auto-links the published image to this repo on the
+# package UI when source matches the canonical GitHub URL.
+LABEL org.opencontainers.image.source="https://github.com/Rohithgilla12/cadence"
+LABEL org.opencontainers.image.description="Cadence API — habit tracker with context-aware analytics"
+LABEL org.opencontainers.image.licenses="proprietary"
+
 WORKDIR /app
 COPY --from=build /out/api /app/api
 COPY --from=build /out/worker /app/worker
