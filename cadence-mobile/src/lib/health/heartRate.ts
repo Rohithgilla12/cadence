@@ -1,11 +1,11 @@
 import { Platform } from 'react-native';
 import { queryQuantitySamples } from '@kingstinct/react-native-healthkit';
 
-// HR zone model. Until we collect the user's max HR explicitly (PRD §6
-// running mode + settings, future work), assume a max of 190 bpm — fair
-// default for adult runners in their 20s-30s. Zones can be re-derived
-// trivially once max_hr lands on the user record.
-export const DEFAULT_MAX_HR = 190;
+import { DEFAULT_MAX_HR } from '@/lib/settings';
+
+// Re-export so existing callers don't churn. lib/settings owns the
+// canonical default — the same constant the You tab editor falls back to.
+export { DEFAULT_MAX_HR };
 
 export interface HeartRateSample {
   bpm: number;

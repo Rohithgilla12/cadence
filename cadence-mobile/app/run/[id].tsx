@@ -18,6 +18,7 @@ import {
   readWorkoutsRange,
 } from '@/lib/health';
 import { formatKm, formatPace } from '@/lib/running';
+import { DEFAULT_MAX_HR, getMaxHr } from '@/lib/settings';
 import { colors } from '@/theme/tokens';
 
 // Run detail uses the workout's start-time ISO string as its route id since
@@ -69,12 +70,23 @@ export default function RunDetailScreen() {
     [workoutsQuery.data, startsAtIso],
   );
 
+  // User's stored max HR (You → Settings). Falls back to DEFAULT_MAX_HR.
+  // Reactive — toggling between defaults and a personal value triggers a
+  // re-bucket via the queryKey.
+  const maxHrQuery = useQuery({
+    queryKey: ['settings-max-hr'],
+    queryFn: getMaxHr,
+    staleTime: 60_000,
+  });
+  const resolvedMaxHr = maxHrQuery.data ?? DEFAULT_MAX_HR;
+  const usingPersonalMaxHr = maxHrQuery.data != null;
+
   // Pull heart-rate samples once we've resolved the run's bounds. Enabled
   // gate keeps the bridge call off when there's no run to query against.
   const hrQuery = useQuery({
-    queryKey: ['health-hr-zones', run?.startsAt, run?.endsAt],
+    queryKey: ['health-hr-zones', run?.startsAt, run?.endsAt, resolvedMaxHr],
     queryFn: () =>
-      run ? readHeartRateForWorkout(run.startsAt, run.endsAt) : Promise.resolve(null),
+      run ? readHeartRateForWorkout(run.startsAt, run.endsAt, resolvedMaxHr) : Promise.resolve(null),
     enabled: !!run,
     staleTime: 60 * 60_000,
   });
@@ -142,7 +154,9 @@ export default function RunDetailScreen() {
                 </View>
                 <HrZoneBars secondsInZone={hrQuery.data.secondsInZone} />
                 <Text className="text-caption text-ink-3 mt-3 font-serif italic">
-                  Zones assume a max of 190 bpm. Set your own in You → Settings (soon).
+                  {usingPersonalMaxHr
+                    ? `Zones based on your max of ${resolvedMaxHr} bpm.`
+                    : `Zones assume a max of ${resolvedMaxHr} bpm. Set yours in You.`}
                 </Text>
               </Card>
             </>
