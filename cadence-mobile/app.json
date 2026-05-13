@@ -17,7 +17,13 @@
       "supportsTablet": false,
       "bundleIdentifier": "fun.gilla.cadence",
       "googleServicesFile": "./GoogleService-Info.plist",
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "fun.gilla.cadence",
