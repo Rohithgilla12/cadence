@@ -4,8 +4,8 @@ This file is read by Claude Code on every session in this repository. It is the 
 
 **Read these first, in order:**
 
-1. `docs/PRD.md` — what we're building and why
-2. `docs/DESIGN_SYSTEM.md` — visual language, components, tokens
+1. **PRD — private.** Lives at `~/cadence-private-docs/PRD.md` on the maintainer's machine (intentionally not in this public repo). If you're working with Claude Code locally, it'll find the PRD there. Public viewers / contributors: ask the maintainer for the relevant section.
+2. `docs/DESIGN_SYSTEM.md` — visual language, components, tokens (public)
 3. This file — coding conventions and how to work in this repo
 
 ---

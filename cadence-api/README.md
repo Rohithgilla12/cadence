@@ -2,7 +2,7 @@
 
 Go service for [Cadence](../README.md). REST + WebSockets, Postgres, single binary deploy.
 
-See [`docs/PRD.md`](../docs/PRD.md) §12 (stack), §13 (infra), §14 (CI/CD).
+PRD is private (held by the maintainer). Stack lineage: §12 (stack), §13 (infra), §14 (CI/CD).
 
 ## Layout
 

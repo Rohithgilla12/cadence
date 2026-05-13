@@ -13,9 +13,10 @@ Single git repo containing both apps:
 
 Source of truth for product, design, and conventions:
 
-1. [`docs/PRD.md`](docs/PRD.md) — what we're building and why
+1. **PRD** — private, held by the maintainer. Public design surface here:
 2. [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) — visual language, components, tokens
-3. [`CLAUDE.md`](CLAUDE.md) — coding conventions
+3. [`docs/ASSETS.md`](docs/ASSETS.md) — brand mark + app icon spec
+4. [`CLAUDE.md`](CLAUDE.md) — coding conventions
 
 ## Getting started
 

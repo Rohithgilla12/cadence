@@ -2,10 +2,9 @@
 
 > Production deploy via Portainer on the VPS, fronted by a Cloudflare Tunnel. No inbound ports opened on the host. Total resource ceiling: ~2 GB RAM, ~5% CPU sustained.
 
-**Architecture:** see [`docs/PRD.md`](../docs/PRD.md) §13. Three services: `postgres`, `cadence-api`, `cloudflared`. Migrations are **embedded in the API binary** and run on startup — no separate init container.
+**Architecture:** see PRD §13 (private). Three services: `postgres`, `cadence-api`, `cloudflared`. Migrations are **embedded in the API binary** and run on startup — no separate init container.
 
-> **VPS architecture note:** the production host (`150.230.131.66`, Oracle
-> Ampere) is **aarch64 / arm64**. Build the API image with
+> **VPS architecture note:** the production host (Oracle Ampere) is **aarch64 / arm64**. Build the API image with
 > `--platform linux/arm64`. If you ever switch to an x86_64 host, swap to
 > `linux/amd64` — the Dockerfile itself is architecture-neutral.
 

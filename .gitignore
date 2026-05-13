@@ -2,6 +2,13 @@
 .DS_Store
 Thumbs.db
 
+# Private docs (PRD + design source files). The PRD content lives at
+# ~/cadence-private-docs/ on the maintainer's machine. Anything matching
+# below is intentionally not in this public repo.
+docs/PRD.md
+docs/cadence_prd.docx
+docs/cadence_*.html
+
 # Editors
 .vscode/
 .idea/

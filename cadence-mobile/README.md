@@ -2,7 +2,7 @@
 
 Expo + React Native + TypeScript app for [Cadence](../README.md).
 
-See [`docs/PRD.md`](../docs/PRD.md) for product, [`docs/DESIGN_SYSTEM.md`](../docs/DESIGN_SYSTEM.md) for visual language.
+PRD is private (held by the maintainer). [`docs/DESIGN_SYSTEM.md`](../docs/DESIGN_SYSTEM.md) is the public visual language.
 
 ## Stack
 
