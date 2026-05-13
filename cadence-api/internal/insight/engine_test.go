@@ -37,17 +37,23 @@ func TestEngine_SleepCompletionPattern_SurfacedWhenStrong(t *testing.T) {
 		t.Fatalf("seed habit: %v", err)
 	}
 
-	// 30 days: alternate low-sleep (5h, not done) and high-sleep (8h, done).
-	// Perfect contingency gives Cramér's V = 1, p ≈ 0.
+	// 30 days. High-sleep nights complete ~83% of the time, low-sleep nights
+	// ~17%. Strong but not degenerate — leaves enough lowDone to keep the
+	// ratio finite, which is what the template needs.
 	today := time.Now().UTC().Truncate(24 * time.Hour)
+	highSleepCompletion := []bool{true, true, true, true, true, false, true, true, true, true, true, true, false, true, true}
+	lowSleepCompletion := []bool{false, false, true, false, false, false, false, true, false, false, false, false, false, false, true}
 	for i := 0; i < 30; i++ {
 		date := today.AddDate(0, 0, -(i + 1))
 		var sleep float64
 		var completed bool
+		half := i / 2
 		if i%2 == 0 {
-			sleep, completed = 8.0, true
+			sleep = 8.0
+			completed = highSleepCompletion[half]
 		} else {
-			sleep, completed = 5.0, false
+			sleep = 5.0
+			completed = lowSleepCompletion[half]
 		}
 		if _, err := pool.Exec(ctx, `
 			INSERT INTO daily_summaries (user_id, date, sleep_hours, source)
@@ -142,14 +148,24 @@ func TestEngine_IdempotentUpsert(t *testing.T) {
 	var habitID uuid.UUID
 	pool.QueryRow(ctx, `INSERT INTO habits (user_id, name, icon) VALUES ($1, 'Run', 'run') RETURNING id`, u.ID).Scan(&habitID)
 	today := time.Now().UTC().Truncate(24 * time.Hour)
+	// Same realistic-completion seed as the strong-signal test above so the
+	// engine actually produces an insight to upsert.
+	highSleepCompletion := []bool{true, true, true, true, true, false, true, true, true, true, true, true, false, true, true}
+	lowSleepCompletion := []bool{false, false, true, false, false, false, false, true, false, false, false, false, false, false, true}
 	for i := 0; i < 30; i++ {
 		date := today.AddDate(0, 0, -(i + 1))
-		sleep := 5.0
+		half := i / 2
+		var sleep float64
+		var completed bool
 		if i%2 == 0 {
 			sleep = 8.0
+			completed = highSleepCompletion[half]
+		} else {
+			sleep = 5.0
+			completed = lowSleepCompletion[half]
 		}
 		pool.Exec(ctx, `INSERT INTO daily_summaries (user_id, date, sleep_hours) VALUES ($1, $2, $3)`, u.ID, date, sleep)
-		if sleep == 8.0 {
+		if completed {
 			pool.Exec(ctx, `INSERT INTO habit_logs (habit_id, date, completed) VALUES ($1, $2, true)`, habitID, date)
 		}
 	}

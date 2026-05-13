@@ -91,20 +91,18 @@ func (sleepCompletionAnalyzer) Run(h habitInfo, rows []dailyRow) (AnalysisResult
 	if len(pairs) < MinSampleSize {
 		return AnalysisResult{}, false
 	}
-	// Bucket sleep into quartiles, then build a 2x2 by collapsing into
-	// "lower half" / "upper half" of sleep × done / not. Quartile-level 4x2
-	// is also valid (and more sensitive) — start with the simpler split.
+	// Median-split sleep into low/high halves for a 2x2 contingency. Using
+	// the median directly (not quartile cuts) keeps the test robust when
+	// values cluster at a few discrete points — e.g. Apple Watch rounding
+	// most nights to similar values.
 	hours := make([]float64, len(pairs))
 	for i, p := range pairs {
 		hours[i] = p.sleepHours
 	}
+	median := medianFloat(hours)
 	var lowDone, lowNot, highDone, highNot int
 	for _, p := range pairs {
-		bucket, ok := QuartileBucket(p.sleepHours, hours)
-		if !ok {
-			return AnalysisResult{}, false
-		}
-		highHalf := bucket >= 2
+		highHalf := p.sleepHours > median
 		switch {
 		case highHalf && p.completed:
 			highDone++
@@ -293,13 +291,10 @@ func (hrvCompletionAnalyzer) Run(h habitInfo, rows []dailyRow) (AnalysisResult, 
 	for i, p := range pairs {
 		values[i] = p.hrv
 	}
+	median := medianFloat(values)
 	var lowDone, lowNot, highDone, highNot int
 	for _, p := range pairs {
-		bucket, ok := QuartileBucket(p.hrv, values)
-		if !ok {
-			return AnalysisResult{}, false
-		}
-		highHalf := bucket >= 2
+		highHalf := p.hrv > median
 		switch {
 		case highHalf && p.completed:
 			highDone++
