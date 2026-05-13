@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1.7
 # Multi-stage build: Alpine for compile, distroless for runtime.
-# Final image is ~15MB, has no shell, runs as nonroot.
+# Final image is ~38MB (api + worker binaries on distroless/static),
+# has no shell, runs as nonroot.
 
 FROM golang:1.25-alpine AS build
 WORKDIR /src

@@ -4,6 +4,17 @@
 
 **Architecture:** see [`docs/PRD.md`](../docs/PRD.md) §13. Three services: `postgres`, `cadence-api`, `cloudflared`. Migrations are **embedded in the API binary** and run on startup — no separate init container.
 
+> **VPS architecture note:** the production host (`150.230.131.66`, Oracle
+> Ampere) is **aarch64 / arm64**. Build the API image with
+> `--platform linux/arm64`. If you ever switch to an x86_64 host, swap to
+> `linux/amd64` — the Dockerfile itself is architecture-neutral.
+
+> **Port 8080:** taken on the VPS by qbittorrent's WebUI, but **this is not
+> a conflict**. The cadence-api service binds *only* to the internal docker
+> network `cadence-internal` — no host port is opened. Cloudflared routes
+> traffic to `http://cadence-api:8080` over that internal network. Nothing
+> the host listens on matters for our stack.
+
 ---
 
 ## Prerequisites (one-time)
@@ -64,14 +75,15 @@ make test-integration
 # arm64 if you're on a Raspberry Pi or Apple-silicon-based VPS).
 SHA=$(git rev-parse --short HEAD)
 docker buildx build \
-  --platform linux/amd64 \
+  --platform linux/arm64 \
   -t ghcr.io/rohithgilla12/cadence-api:${SHA} \
   -t ghcr.io/rohithgilla12/cadence-api:latest \
   --push \
   .
 ```
 
-The image is multi-stage and lands at ~15 MB (distroless/static base).
+The image is multi-stage and lands at ~38 MB (distroless/static base, both
+api + worker binaries baked in).
 
 ### 2. Stage the secrets on the VPS
 
@@ -145,7 +157,7 @@ For now (no CI):
 ```bash
 cd cadence-api
 SHA=$(git rev-parse --short HEAD)
-docker buildx build --platform linux/amd64 \
+docker buildx build --platform linux/arm64 \
   -t ghcr.io/rohithgilla12/cadence-api:${SHA} \
   --push .
 
@@ -163,6 +175,25 @@ Migrations apply automatically on startup — no separate step.
 In Portainer → Stacks → cadence → Editor → set `CADENCE_IMAGE` back to a known-good `:<sha>` tag → Update.
 
 Postgres data is in a named volume (`cadence-pgdata`) and survives. Rolling back the API binary does NOT roll back schema changes — `golang-migrate` only runs forward. If a migration broke things, restore from the previous backup and `migrate -path ... down 1` manually.
+
+---
+
+## Alternative: share the existing cloudflared (optional optimization)
+
+The current stack runs its own `cloudflared` container for full isolation
+(~30 MB RAM cost). If you'd rather consolidate onto the existing tunnel
+already serving gilla.fun on the VPS:
+
+1. Comment out the `cloudflared:` service block in
+   `deploy/docker-compose.prod.yml`.
+2. After the stack is up, attach the existing cloudflared to the cadence
+   network: `docker network connect cadence-internal cloudflared`.
+3. In Cloudflare Zero Trust → your existing tunnel → Public Hostname,
+   add `api.cadence.gilla.fun` → `http://cadence-api:8080`.
+
+The default (two cloudflareds, one per concern) is safer for the first
+deploy because it doesn't touch your existing tunnel config. Consolidate
+later if you ever want to.
 
 ---
 
