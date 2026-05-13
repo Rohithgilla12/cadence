@@ -1,6 +1,8 @@
 import type { ApiClient } from './client';
 import type {
   ApiCheckIn,
+  ApiCircle,
+  ApiCircleDetail,
   ApiHabit,
   ApiHabitSourceLink,
   ApiInsight,
@@ -107,6 +109,27 @@ export const endpoints = {
 
   computeInsights: (client: ApiClient) => () =>
     client.request<{ surfaced: number }>('/v1/insights/compute', { method: 'POST' }),
+
+  listCircles: (client: ApiClient) => () =>
+    client.request<{ circles: ApiCircle[] }>('/v1/circles').then((r) => r.circles),
+
+  createCircle: (client: ApiClient) => (input: { name: string; description?: string }) =>
+    client
+      .request<{ circle: ApiCircle }>('/v1/circles', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      })
+      .then((r) => r.circle),
+
+  getCircle: (client: ApiClient) => (id: string) =>
+    client.request<ApiCircleDetail>(`/v1/circles/${id}`),
+
+  joinCircle: (client: ApiClient) => (token: string) =>
+    client
+      .request<{ circle: ApiCircle }>(`/v1/circles/join/${encodeURIComponent(token)}`, {
+        method: 'POST',
+      })
+      .then((r) => r.circle),
 };
 
 // Mirrors the Go putDailySumRequest. All fields optional — client uploads

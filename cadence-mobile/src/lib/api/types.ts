@@ -81,6 +81,27 @@ export interface GetCheckInResponse {
   checkIn: ApiCheckIn | null;
 }
 
+export interface ApiCircle {
+  id: string;
+  name: string;
+  description?: string;
+  creatorId: string;
+  inviteToken: string;
+  createdAt: string;
+}
+
+export interface ApiCircleMember {
+  userId: string;
+  displayName: string;
+  joinedAt: string;
+  role: 'creator' | 'member';
+}
+
+export interface ApiCircleDetail {
+  circle: ApiCircle;
+  members: ApiCircleMember[];
+}
+
 // Mirrors Go insightDTO. Wraps the engine's rendered output so the UI can
 // render localized copy from params later if we want, but for v1 we just
 // display renderedText directly.

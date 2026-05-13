@@ -4,4 +4,6 @@ export const queryKeys = {
   checkIn: (date: string) => ['check-in', date] as const,
   insightToday: ['insight-today'] as const,
   insights: ['insights'] as const,
+  circles: ['circles'] as const,
+  circle: (id: string) => ['circle', id] as const,
 };

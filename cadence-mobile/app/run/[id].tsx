@@ -4,12 +4,13 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
+import { HrZoneBars } from '@/components/charts';
 import { Screen, SectionLabel } from '@/components/layout';
 import { Card } from '@/components/primitives';
 import { endpoints } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queryKeys';
 import { apiClient } from '@/lib/client';
-import { readDailySummary, readWorkoutsRange } from '@/lib/health';
+import { readDailySummary, readHeartRateForWorkout, readWorkoutsRange } from '@/lib/health';
 import { formatKm, formatPace } from '@/lib/running';
 import { colors } from '@/theme/tokens';
 
@@ -62,6 +63,16 @@ export default function RunDetailScreen() {
     [workoutsQuery.data, startsAtIso],
   );
 
+  // Pull heart-rate samples once we've resolved the run's bounds. Enabled
+  // gate keeps the bridge call off when there's no run to query against.
+  const hrQuery = useQuery({
+    queryKey: ['health-hr-zones', run?.startsAt, run?.endsAt],
+    queryFn: () =>
+      run ? readHeartRateForWorkout(run.startsAt, run.endsAt) : Promise.resolve(null),
+    enabled: !!run,
+    staleTime: 60 * 60_000,
+  });
+
   return (
     <Screen scroll>
       <Pressable
@@ -97,6 +108,25 @@ export default function RunDetailScreen() {
             <View className="w-px bg-hairline mx-4" />
             <StatBlock label="PACE" value={formatPace(run.durationMinutes, run.distanceMeters)} />
           </View>
+
+          {hrQuery.data ? (
+            <>
+              <SectionLabel label="HEART RATE" />
+              <Card padding="md">
+                <View className="flex-row mb-4">
+                  <StatBlock label="AVG" value={`${hrQuery.data.averageBpm} bpm`} />
+                  <View className="w-px bg-hairline mx-4" />
+                  <StatBlock label="MAX" value={`${hrQuery.data.maxBpm} bpm`} />
+                  <View className="w-px bg-hairline mx-4" />
+                  <StatBlock label="MIN" value={`${hrQuery.data.minBpm} bpm`} />
+                </View>
+                <HrZoneBars secondsInZone={hrQuery.data.secondsInZone} />
+                <Text className="text-caption text-ink-3 mt-3 font-serif italic">
+                  Zones assume a max of 190 bpm. Set your own in You → Settings (soon).
+                </Text>
+              </Card>
+            </>
+          ) : null}
 
           <SectionLabel label="THAT MORNING" />
           <Card padding="md">
