@@ -1,0 +1,62 @@
+{
+  "project_info": {
+    "project_number": "358093874155",
+    "project_id": "cadence-habit",
+    "storage_bucket": "cadence-habit.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:358093874155:android:8268bd4c413533df57afae",
+        "android_client_info": {
+          "package_name": "fun.gilla.cadence"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "358093874155-151nuj4e9tkimhhfnnhjr7i9mkl8dpgo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "fun.gilla.cadence",
+            "certificate_hash": "25dc06b499b77ebe46175f2988bb0a3feeed7006"
+          }
+        },
+        {
+          "client_id": "358093874155-f3c54t2kj2b6rli1iq2po1olj4j0enpa.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "fun.gilla.cadence",
+            "certificate_hash": "da454c9decad655cb86ef5abd51780e1f09304ec"
+          }
+        },
+        {
+          "client_id": "358093874155-c576otcdsiel0djds9lam8934evc9krg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDxaDVAPcUn1tf-SoXfh8Ol2QeFAgM5Eos"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "358093874155-c576otcdsiel0djds9lam8934evc9krg.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "358093874155-oou8ge0lv6khrb3ksoj22e26aqk3k0qk.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "fun.gilla.cadence"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

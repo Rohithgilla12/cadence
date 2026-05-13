@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>358093874155-oou8ge0lv6khrb3ksoj22e26aqk3k0qk.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.358093874155-oou8ge0lv6khrb3ksoj22e26aqk3k0qk</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>358093874155-151nuj4e9tkimhhfnnhjr7i9mkl8dpgo.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyCA0b26a3y0igGpU5CnHATgmvfCPdaofyU</string>
+	<key>GCM_SENDER_ID</key>
+	<string>358093874155</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>fun.gilla.cadence</string>
+	<key>PROJECT_ID</key>
+	<string>cadence-habit</string>
+	<key>STORAGE_BUCKET</key>
+	<string>cadence-habit.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:358093874155:ios:3c1fd08bcf6afa6c57afae</string>
+</dict>
+</plist>
