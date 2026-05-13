@@ -1,0 +1,10 @@
+{
+  "type": "widget",
+  "name": "CadenceWidget",
+  "icon": "../../assets/icon.png",
+  "deploymentTarget": "16.0",
+  "frameworks": ["SwiftUI", "WidgetKit"],
+  "entitlements": {
+    "com.apple.security.application-groups": ["group.fun.gilla.cadence"]
+  }
+}

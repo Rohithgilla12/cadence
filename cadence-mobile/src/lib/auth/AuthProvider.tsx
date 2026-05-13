@@ -1,6 +1,7 @@
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { createContext, useEffect, useMemo, useState } from 'react';
 import type { AuthState, AuthStatus, AuthUser } from './types';
+import { clearWidgetData } from '@/lib/widgets';
 
 export const AuthContext = createContext<AuthState | null>(null);
 
@@ -36,6 +37,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
       signOut: async () => {
         await auth().signOut();
+        // Wipe the App Group snapshot so widgets don't keep showing the
+        // previous user's habits on the home screen after sign-out.
+        clearWidgetData();
       },
     }),
     [status, user],

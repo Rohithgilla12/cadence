@@ -42,9 +42,14 @@ const config: ExpoConfig = {
     // Declared statically (not via a withEntitlementsPlist modifier) so EAS
     // Build's capability syncer detects HealthKit and enables it on the
     // provisioning profile. See https://github.com/expo/eas-cli/issues/2117
+    //
+    // App Groups: the suffix must match the `appGroupIdentifier` in
+    // `targets/cadence-widget/expo-target.config.json` so the widget
+    // extension and the main app share a UserDefaults suite.
     entitlements: {
       "com.apple.developer.healthkit": true,
       "com.apple.developer.healthkit.access": [],
+      "com.apple.security.application-groups": ["group.fun.gilla.cadence"],
     },
   },
   android: {
@@ -91,6 +96,10 @@ const config: ExpoConfig = {
       },
     ],
     "./plugins/withFirebaseStaticFrameworks",
+    // Registers the WidgetKit extension target defined under
+    // `targets/cadence-widget/`. See cadence-mobile/README.md → "iOS Home
+    // Screen widgets".
+    "@bacons/apple-targets",
   ],
   experiments: {
     typedRoutes: true,
