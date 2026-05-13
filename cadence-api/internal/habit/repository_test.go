@@ -101,6 +101,91 @@ func TestArchive_SetsArchivedAtAndExcludesFromList(t *testing.T) {
 	}
 }
 
+func TestCreateHabit_RoundTripsSourceLinkAndTarget(t *testing.T) {
+	pool := db.TestPool(t)
+	db.Truncate(t, pool, "habits", "users")
+	u := seedUser(t, pool)
+	repo := habit.NewRepository(pool)
+	ctx := context.Background()
+
+	got, err := repo.Create(ctx, habit.CreateInput{
+		UserID:    u.ID,
+		Name:      "Morning run",
+		Icon:      "run",
+		TimeOfDay: habit.TimeMorning,
+		Target:    &habit.Target{Value: 30, Unit: "min"},
+		SourceLink: &habit.SourceLink{
+			Provider:   "apple_health",
+			Kind:       "workout",
+			Activity:   "run",
+			MinMinutes: 15,
+			Window:     &habit.TimeWindow{Start: "05:00", End: "11:00"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if got.SourceLink == nil {
+		t.Fatalf("source_link not persisted")
+	}
+	if got.SourceLink.Activity != "run" || got.SourceLink.MinMinutes != 15 {
+		t.Fatalf("source_link decoded wrong: %+v", got.SourceLink)
+	}
+	if got.SourceLink.Window == nil || got.SourceLink.Window.Start != "05:00" {
+		t.Fatalf("window decoded wrong: %+v", got.SourceLink.Window)
+	}
+	if got.Target == nil || got.Target.Value != 30 || got.Target.Unit != "min" {
+		t.Fatalf("target decoded wrong: %+v", got.Target)
+	}
+
+	// Read it back via Get to make sure persistence works end-to-end.
+	fetched, err := repo.GetByID(ctx, got.ID, u.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if fetched.SourceLink == nil || fetched.SourceLink.Provider != "apple_health" {
+		t.Fatalf("source_link missing after refetch: %+v", fetched.SourceLink)
+	}
+}
+
+func TestUpdate_PartialFieldsAndClearSourceLink(t *testing.T) {
+	pool := db.TestPool(t)
+	db.Truncate(t, pool, "habits", "users")
+	u := seedUser(t, pool)
+	repo := habit.NewRepository(pool)
+	ctx := context.Background()
+
+	h, err := repo.Create(ctx, habit.CreateInput{
+		UserID:    u.ID,
+		Name:      "Original",
+		Icon:      "sparkles",
+		TimeOfDay: habit.TimeAnytime,
+		SourceLink: &habit.SourceLink{
+			Provider: "apple_health", Kind: "category", Activity: "mindful", MinMinutes: 5,
+		},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	newName := "Renamed"
+	updated, err := repo.Update(ctx, habit.UpdateInput{
+		ID:              h.ID,
+		OwnerID:         u.ID,
+		Name:            &newName,
+		ClearSourceLink: true,
+	})
+	if err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	if updated.Name != "Renamed" {
+		t.Fatalf("name not updated: %q", updated.Name)
+	}
+	if updated.SourceLink != nil {
+		t.Fatalf("source_link should be cleared, got %+v", updated.SourceLink)
+	}
+}
+
 func TestGetByID_ScopedToOwner(t *testing.T) {
 	pool := db.TestPool(t)
 	db.Truncate(t, pool, "habits", "users")

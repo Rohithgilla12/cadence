@@ -125,6 +125,99 @@ func TestHabits_ToggleFlipsDoneAndStreak(t *testing.T) {
 	}
 }
 
+func TestHabits_AutoDetectToggleAndManualGuard(t *testing.T) {
+	srv, _ := newTestServer(t)
+	_, body := doReq(t, srv, http.MethodPost, "/v1/habits", map[string]any{
+		"name": "Morning run", "icon": "run",
+		"sourceLink": map[string]any{
+			"provider": "apple_health", "kind": "workout", "activity": "run", "minMinutes": 15,
+		},
+	})
+	var created struct {
+		Habit struct {
+			ID         string `json:"id"`
+			SourceLink struct {
+				Provider, Kind, Activity string
+				MinMinutes               int
+			} `json:"sourceLink"`
+		} `json:"habit"`
+	}
+	_ = json.Unmarshal(body, &created)
+	if created.Habit.SourceLink.Activity != "run" || created.Habit.SourceLink.MinMinutes != 15 {
+		t.Fatalf("sourceLink not echoed back: %+v", created.Habit.SourceLink)
+	}
+	id := created.Habit.ID
+
+	// Apple Health auto-detect toggles done with source=apple_health and the
+	// list response surfaces autoDetected=true.
+	status, body := doReq(t, srv, http.MethodPost, "/v1/habits/"+id+"/toggle",
+		map[string]any{"source": "apple_health"})
+	if status != http.StatusOK {
+		t.Fatalf("toggle status %d body %s", status, body)
+	}
+	var toggled struct {
+		Habit struct {
+			DoneToday    bool `json:"doneToday"`
+			AutoDetected bool `json:"autoDetected"`
+		} `json:"habit"`
+	}
+	_ = json.Unmarshal(body, &toggled)
+	if !toggled.Habit.DoneToday || !toggled.Habit.AutoDetected {
+		t.Fatalf("auto-detect log not reflected: %+v", toggled.Habit)
+	}
+
+	// PRD §9 guard: an apple_health toggle must not flip OFF a previously
+	// manual log. Set up: untoggle, then manual-log it, then try auto-untoggle.
+	doReq(t, srv, http.MethodPost, "/v1/habits/"+id+"/toggle", map[string]any{"source": "apple_health"})
+	doReq(t, srv, http.MethodPost, "/v1/habits/"+id+"/toggle", nil) // manual on
+	status, body = doReq(t, srv, http.MethodPost, "/v1/habits/"+id+"/toggle",
+		map[string]any{"source": "apple_health"})
+	if status != http.StatusOK {
+		t.Fatalf("guard toggle status %d body %s", status, body)
+	}
+	_ = json.Unmarshal(body, &toggled)
+	if !toggled.Habit.DoneToday || toggled.Habit.AutoDetected {
+		t.Fatalf("manual log overwritten by auto-detect: %+v", toggled.Habit)
+	}
+}
+
+func TestHabits_PatchUpdatesAndClearsSourceLink(t *testing.T) {
+	srv, _ := newTestServer(t)
+	_, body := doReq(t, srv, http.MethodPost, "/v1/habits", map[string]any{
+		"name": "Walk", "icon": "shoe",
+		"sourceLink": map[string]any{
+			"provider": "apple_health", "kind": "workout", "activity": "walking", "minMinutes": 15,
+		},
+	})
+	var created struct {
+		Habit struct {
+			ID string `json:"id"`
+		} `json:"habit"`
+	}
+	_ = json.Unmarshal(body, &created)
+
+	status, body := doReq(t, srv, http.MethodPatch, "/v1/habits/"+created.Habit.ID, map[string]any{
+		"name":            "Evening walk",
+		"clearSourceLink": true,
+	})
+	if status != http.StatusOK {
+		t.Fatalf("patch status %d body %s", status, body)
+	}
+	var patched struct {
+		Habit struct {
+			Name       string `json:"name"`
+			SourceLink any    `json:"sourceLink"`
+		} `json:"habit"`
+	}
+	_ = json.Unmarshal(body, &patched)
+	if patched.Habit.Name != "Evening walk" {
+		t.Fatalf("name not updated: %q", patched.Habit.Name)
+	}
+	if patched.Habit.SourceLink != nil {
+		t.Fatalf("sourceLink should be cleared, got %v", patched.Habit.SourceLink)
+	}
+}
+
 func TestHabits_ArchiveRemovesFromList(t *testing.T) {
 	srv, _ := newTestServer(t)
 	_, body := doReq(t, srv, http.MethodPost, "/v1/habits", map[string]any{"name": "Bye", "icon": "sparkles"})

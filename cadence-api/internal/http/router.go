@@ -41,6 +41,7 @@ func NewRouter(deps Deps) http.Handler {
 		habits := newHabitsHandler(deps.Habits, deps.HabitLogs)
 		r.Get("/habits", habits.list)
 		r.Post("/habits", habits.create)
+		r.Patch("/habits/{id}", habits.update)
 		r.Post("/habits/{id}/toggle", habits.toggle)
 		r.Delete("/habits/{id}", habits.archive)
 

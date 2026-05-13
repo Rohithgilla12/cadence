@@ -75,6 +75,36 @@ func (r *LogRepository) RecentCompletedDates(ctx context.Context, habitID uuid.U
 	return out, rows.Err()
 }
 
+// SourceByDate returns a map of habitID -> log source for the given date,
+// scoped to the provided habit IDs. Only completed logs are included. Used
+// to decide whether a habit's done state came from manual user input or an
+// auto-detect run, so PRD §9 "never auto-uncheck a manually-logged habit"
+// can be enforced and the UI can show an "auto-detected" caption.
+func (r *LogRepository) SourceByDate(ctx context.Context, habitIDs []uuid.UUID, date time.Time) (map[uuid.UUID]LogSource, error) {
+	out := make(map[uuid.UUID]LogSource, len(habitIDs))
+	if len(habitIDs) == 0 {
+		return out, nil
+	}
+	rows, err := r.pool.Query(ctx, `
+		SELECT habit_id, source
+		FROM habit_logs
+		WHERE habit_id = ANY($1) AND date = $2 AND completed = true
+	`, habitIDs, date)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id uuid.UUID
+		var src string
+		if err := rows.Scan(&id, &src); err != nil {
+			return nil, err
+		}
+		out[id] = LogSource(src)
+	}
+	return out, rows.Err()
+}
+
 // DoneByDate returns a map of habitID -> completed for the given date, scoped to the
 // provided habit IDs. Used to enrich the habit list response.
 func (r *LogRepository) DoneByDate(ctx context.Context, habitIDs []uuid.UUID, date time.Time) (map[uuid.UUID]bool, error) {
