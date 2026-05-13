@@ -133,17 +133,35 @@ export async function getStatus(): Promise<HealthAuthStatus> {
   return (await isAuthorized()) ? 'authorized' : 'unknown';
 }
 
+export class HealthKitError extends Error {
+  constructor(message: string, public readonly cause?: unknown) {
+    super(message);
+    this.name = 'HealthKitError';
+  }
+}
+
 export async function requestPermissions(): Promise<HealthAuthStatus> {
   const modules = await loadHealthkitModules();
-  if (!modules) return 'unavailable';
+  if (!modules) {
+    if (!isIOS) return 'unavailable';
+    // iOS but native module didn't load — almost certainly an entitlement /
+    // capability problem in the build. Throw so the caller can show the real
+    // reason instead of a generic 'denied'.
+    throw new HealthKitError(
+      'HealthKit native module failed to load. Check that the HealthKit capability is enabled for the App ID in Apple Developer Portal and that the build was provisioned with the matching profile.',
+    );
+  }
   try {
     await modules.Core.requestAuthorization({
       toRead: READ_SAMPLE_TYPES as unknown as readonly string[],
       toShare: [],
     });
     return (await isAuthorized()) ? 'authorized' : 'denied';
-  } catch {
-    return 'denied';
+  } catch (err) {
+    throw new HealthKitError(
+      err instanceof Error ? err.message : 'HealthKit authorization failed',
+      err,
+    );
   }
 }
 

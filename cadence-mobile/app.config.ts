@@ -39,6 +39,13 @@ const config: ExpoConfig = {
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
     },
+    // Declared statically (not via a withEntitlementsPlist modifier) so EAS
+    // Build's capability syncer detects HealthKit and enables it on the
+    // provisioning profile. See https://github.com/expo/eas-cli/issues/2117
+    entitlements: {
+      "com.apple.developer.healthkit": true,
+      "com.apple.developer.healthkit.access": [],
+    },
   },
   android: {
     package: "fun.gilla.cadence",
