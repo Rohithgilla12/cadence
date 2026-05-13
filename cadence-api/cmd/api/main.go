@@ -13,6 +13,7 @@ import (
 
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/auth"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/checkin"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/circle"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/config"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/dailysum"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/db"
@@ -60,6 +61,7 @@ func main() {
 	dailySumRepo := dailysum.NewRepository(pool)
 	insightRepo := insight.NewRepository(pool)
 	insightEngine := insight.NewEngine(pool, insightRepo)
+	circleRepo := circle.NewRepository(pool)
 
 	server := &http.Server{
 		Addr: fmt.Sprintf(":%d", cfg.Port),
@@ -74,6 +76,7 @@ func main() {
 			DailySummaries: dailySumRepo,
 			InsightEngine:  insightEngine,
 			Insights:       insightRepo,
+			Circles:        circleRepo,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}

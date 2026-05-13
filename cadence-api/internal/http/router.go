@@ -6,6 +6,7 @@ import (
 
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/auth"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/checkin"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/circle"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/dailysum"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/habit"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/insight"
@@ -26,6 +27,7 @@ type Deps struct {
 	DailySummaries *dailysum.Repository
 	InsightEngine  *insight.Engine
 	Insights       *insight.Repository
+	Circles        *circle.Repository
 }
 
 func NewRouter(deps Deps) http.Handler {
@@ -62,6 +64,14 @@ func NewRouter(deps Deps) http.Handler {
 			r.Get("/insights/today", insights.today)
 			r.Get("/insights", insights.list)
 			r.Post("/insights/compute", insights.compute)
+		}
+
+		if deps.Circles != nil {
+			circles := newCirclesHandler(deps.Circles)
+			r.Get("/circles", circles.list)
+			r.Post("/circles", circles.create)
+			r.Get("/circles/{id}", circles.get)
+			r.Post("/circles/join/{token}", circles.join)
 		}
 	})
 

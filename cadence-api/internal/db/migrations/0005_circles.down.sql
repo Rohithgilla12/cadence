@@ -1,0 +1,6 @@
+DROP TABLE IF EXISTS reactions;
+DROP TABLE IF EXISTS circle_feed_items;
+DROP TABLE IF EXISTS pact_progress;
+DROP TABLE IF EXISTS pacts;
+DROP TABLE IF EXISTS circle_members;
+DROP TABLE IF EXISTS circles;
