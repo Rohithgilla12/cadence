@@ -7,7 +7,7 @@ import { Button } from '@/components/primitives';
 import { Screen, SectionLabel } from '@/components/layout';
 import { HabitRow } from '@/components/habit';
 import { InsightCard } from '@/components/insight';
-import { WeekStrip, CheckInRow } from '@/components/today';
+import { WeekStrip, CheckInRow, RhythmStatsCard } from '@/components/today';
 import { endpoints } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queryKeys';
 import { apiClient } from '@/lib/client';
@@ -153,6 +153,16 @@ export default function TodayScreen() {
         } : null}
         healthSleepHours={dailySummaryQuery.data?.sleepHours}
       />
+
+      {dailySummaryQuery.data ? (
+        <View className="mt-3">
+          <RhythmStatsCard
+            steps={dailySummaryQuery.data.steps}
+            activeEnergyKcal={dailySummaryQuery.data.activeEnergyKcal}
+            workouts={dailySummaryQuery.data.workouts}
+          />
+        </View>
+      ) : null}
 
       <View className="mt-6">
         <Button
