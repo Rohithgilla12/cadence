@@ -10,6 +10,7 @@ import (
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/dailysum"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/habit"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/insight"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/pact"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/user"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -28,6 +29,7 @@ type Deps struct {
 	InsightEngine  *insight.Engine
 	Insights       *insight.Repository
 	Circles        *circle.Repository
+	Pacts          *pact.Repository
 }
 
 func NewRouter(deps Deps) http.Handler {
@@ -72,6 +74,13 @@ func NewRouter(deps Deps) http.Handler {
 			r.Post("/circles", circles.create)
 			r.Get("/circles/{id}", circles.get)
 			r.Post("/circles/join/{token}", circles.join)
+		}
+
+		if deps.Pacts != nil {
+			pacts := newPactsHandler(deps.Pacts)
+			r.Post("/circles/{id}/pacts", pacts.create)
+			r.Get("/circles/{id}/pacts", pacts.listForCircle)
+			r.Post("/pacts/{id}/complete", pacts.complete)
 		}
 	})
 
