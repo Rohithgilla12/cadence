@@ -1,0 +1,51 @@
+# .easignore — what to exclude from EAS Build archives (cloud + local).
+#
+# EAS reads this INSTEAD of .gitignore when it's present. So we list everything
+# from .gitignore here EXCEPT the Firebase config files — those are gitignored
+# (correctly — public repo, project-specific config) but they MUST be in the
+# build archive so 'expo prebuild' can copy them into the iOS/Android projects.
+#
+# Net effect:
+# - Public git: no GoogleService-Info.plist, no google-services.json
+# - EAS Build (cloud OR local): both files included from local disk
+#
+# This is the documented Expo pattern for "private files needed at build time".
+
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+*.tsbuildinfo
+
+# Generated native projects — EAS prebuilds these, so no need to upload
+ios/
+android/
+
+# Local environment — secrets stay on the laptop / EAS env vars
+.env
+.env.local
+.env.*.local
+expo-env.d.ts
+
+# Misc local files
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*.log
+
+# Local keys we genuinely never want in builds
+*.pem
+*.key
+firebase-admin*.json
+
+# Build outputs
+*.ipa
+*.apk
+*.aab
+
+# NOTE: deliberately NOT excluded (i.e., included in EAS builds):
+#   GoogleService-Info.plist
+#   google-services.json
