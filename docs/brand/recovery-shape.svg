@@ -1,0 +1,42 @@
+<!-- docs/brand/recovery-shape.svg -->
+<svg
+  viewBox="0 0 240 240"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <!--
+    Recovery shape — rest state
+    Intended baseline scale: 1.0
+  -->
+  <path
+    id="recovery-rest"
+    d="M52 128
+       C52 92, 82 66, 118 66
+       C150 66, 178 82, 188 110
+       C198 138, 186 168, 158 182
+       C128 196, 92 190, 70 168
+       C56 154, 52 142, 52 128Z"
+    fill="#EEF1E8"
+    stroke="#4A5A40"
+    stroke-width="1.5"
+  />
+
+  <!--
+    Recovery shape — expanded state
+    Intended animation scale: 1.03
+    Slightly enlarged from center (120,120)
+  -->
+  <path
+    id="recovery-expanded"
+    opacity="0"
+    d="M49.9 128.2
+       C49.9 91.2, 80.9 64.4, 118 64.4
+       C151 64.4, 179.8 80.9, 190.1 109.7
+       C200.4 139.1, 188 170, 159.2 184.4
+       C128.3 198.8, 91.2 192.6, 68.5 170
+       C54.1 155.6, 49.9 143.2, 49.9 128.2Z"
+    fill="#EEF1E8"
+    stroke="#4A5A40"
+    stroke-width="1.5"
+  />
+</svg>

@@ -1,0 +1,26 @@
+<!-- docs/brand/wordmark.svg -->
+<svg
+  width="480"
+  height="120"
+  viewBox="0 0 480 120"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <style>
+    .wordmark {
+      font-family: "Iowan Old Style", "Palatino Linotype", serif;
+      font-size: 64px;
+      font-weight: 500;
+      fill: #2C3528;
+    }
+  </style>
+
+  <text
+    x="24"
+    y="82"
+    class="wordmark"
+    dominant-baseline="alphabetic"
+  >
+    Cadence
+  </text>
+</svg>
