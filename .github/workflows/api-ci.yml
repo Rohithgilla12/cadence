@@ -1,0 +1,191 @@
+name: api-ci
+
+# Continuous build + test + deploy for the Go API.
+#
+# - On every push to main that touches cadence-api/**: test, push :sha + :latest
+#   to ghcr.io/rohithgilla12/cadence-api, then SSH into the production VPS and
+#   pull the new image + restart the container.
+# - On PRs to main that touch cadence-api/**: test only (no push, no deploy).
+#
+# Tests run integration tests against a real Postgres service container.
+# Migrations are embedded in the binary, so the test pool applies them itself
+# on first connect — no migrate CLI install needed in CI.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cadence-api/**'
+      - '.github/workflows/api-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'cadence-api/**'
+      - '.github/workflows/api-ci.yml'
+  workflow_dispatch: {}
+
+concurrency:
+  group: api-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: cadence
+          POSTGRES_PASSWORD: cadence
+          POSTGRES_DB: cadence
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cadence-api/go.mod
+          cache-dependency-path: cadence-api/go.sum
+
+      - name: go build
+        working-directory: cadence-api
+        run: go build ./...
+
+      - name: go vet
+        working-directory: cadence-api
+        run: go vet ./...
+
+      - name: gofmt check
+        working-directory: cadence-api
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt would change these files:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Create test database
+        env:
+          PGPASSWORD: cadence
+        run: |
+          # apt's psql client speaks to the postgres:17 service fine.
+          sudo apt-get install -y postgresql-client
+          psql -h localhost -U cadence -d postgres -c 'CREATE DATABASE cadence_test;'
+
+      - name: Unit tests
+        working-directory: cadence-api
+        run: go test -count=1 ./...
+
+      - name: Integration tests
+        working-directory: cadence-api
+        env:
+          DATABASE_URL: postgres://cadence:cadence@localhost:5432/cadence?sslmode=disable
+          DATABASE_TEST_URL: postgres://cadence:cadence@localhost:5432/cadence_test?sslmode=disable
+        run: go test -tags integration -p 1 -count=1 ./...
+
+  build-push:
+    name: build & push
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute tags + labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/rohithgilla12/cadence-api
+          tags: |
+            type=sha,format=short,prefix=
+            type=raw,value=latest
+
+      - name: Build + push arm64
+        uses: docker/build-push-action@v6
+        with:
+          context: cadence-api
+          file: cadence-api/Dockerfile
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=cadence-api
+          cache-to: type=gha,scope=cadence-api,mode=max
+
+  deploy:
+    name: deploy
+    needs: build-push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://cadence-api.gilla.fun
+
+    steps:
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          HOST_KEY: ${{ secrets.VPS_HOST_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/cadence-deploy
+          chmod 600 ~/.ssh/cadence-deploy
+          printf '%s\n' "$HOST_KEY" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Trigger deploy
+        # The SSH key on the VPS has a forced command — sshd ignores anything
+        # the client requests and runs the pinned `docker compose pull + up`.
+        # We just need to open a connection.
+        run: |
+          ssh -i ~/.ssh/cadence-deploy \
+              -o BatchMode=yes \
+              ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+
+      - name: Smoke test
+        run: |
+          # Give the new container ~10s to settle after compose up.
+          sleep 10
+          for attempt in 1 2 3 4 5; do
+            if curl --max-time 8 -fsS https://cadence-api.gilla.fun/health; then
+              echo ""
+              echo "::notice::deploy verified at attempt $attempt"
+              exit 0
+            fi
+            echo "attempt $attempt failed, retrying in 5s..."
+            sleep 5
+          done
+          echo "::error::health endpoint did not return 200 after 5 attempts"
+          exit 1
