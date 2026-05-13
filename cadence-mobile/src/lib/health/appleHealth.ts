@@ -203,13 +203,15 @@ export async function readDailySummary(date: Date): Promise<DailySummary> {
   } catch {}
 
   try {
+    // Explicitly request meters — the kingstinct package's default unit for
+    // distance quantities is km, which (combined with our meters/1000
+    // formatting) was showing real walking as "0.00 km".
     const distanceResult = await queryStatisticsForQuantity(
       'HKQuantityTypeIdentifierDistanceWalkingRunning',
       ['cumulativeSum'],
-      { filter: dateFilter },
+      { filter: dateFilter, unit: 'm' },
     );
     if (distanceResult?.sumQuantity?.quantity != null) {
-      // Default unit for distance quantities is meters.
       summary.distanceMeters = Math.round(distanceResult.sumQuantity.quantity);
     }
   } catch {}
@@ -230,17 +232,19 @@ export async function readDailySummary(date: Date): Promise<DailySummary> {
   } catch {}
 
   try {
+    // Request milliseconds directly — the kingstinct v14 default unit for
+    // HRV SDNN is ms (not seconds, despite HealthKit's underlying canonical
+    // unit). Asking for 'ms' explicitly is robust to either case and gives
+    // us the number humans recognize ("42 ms") with no math.
     const hrvResult = await queryStatisticsForQuantity(
       'HKQuantityTypeIdentifierHeartRateVariabilitySDNN',
       ['mostRecent'],
-      { filter: dateFilter },
+      { filter: dateFilter, unit: 'ms' },
     );
     const recent = (hrvResult as { mostRecentQuantity?: { quantity: number } })
       ?.mostRecentQuantity;
     if (recent?.quantity != null) {
-      // HRV SDNN reports in seconds — multiply for ms which is what humans
-      // recognize (e.g. "42 ms").
-      summary.hrvMs = Math.round(recent.quantity * 1000);
+      summary.hrvMs = Math.round(recent.quantity);
     }
   } catch {}
 
