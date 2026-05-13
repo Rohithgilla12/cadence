@@ -6,4 +6,5 @@ export const queryKeys = {
   insights: ['insights'] as const,
   circles: ['circles'] as const,
   circle: (id: string) => ['circle', id] as const,
+  circlePacts: (id: string) => ['circle-pacts', id] as const,
 };

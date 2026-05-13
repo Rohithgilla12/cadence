@@ -6,6 +6,7 @@ import type {
   ApiHabit,
   ApiHabitSourceLink,
   ApiInsight,
+  ApiPact,
   ApiTarget,
   ApiTimeOfDay,
   GetCheckInResponse,
@@ -130,6 +131,27 @@ export const endpoints = {
         method: 'POST',
       })
       .then((r) => r.circle),
+
+  listPacts: (client: ApiClient) => (circleId: string) =>
+    client
+      .request<{ pacts: ApiPact[] }>(`/v1/circles/${circleId}/pacts`)
+      .then((r) => r.pacts),
+
+  createPact:
+    (client: ApiClient) =>
+    (
+      circleId: string,
+      input: { text: string; startDate: string; endDate: string },
+    ) =>
+      client
+        .request<{ pact: ApiPact }>(`/v1/circles/${circleId}/pacts`, {
+          method: 'POST',
+          body: JSON.stringify(input),
+        })
+        .then((r) => r.pact),
+
+  completePact: (client: ApiClient) => (pactId: string) =>
+    client.request<void>(`/v1/pacts/${pactId}/complete`, { method: 'POST' }),
 };
 
 // Mirrors the Go putDailySumRequest. All fields optional — client uploads

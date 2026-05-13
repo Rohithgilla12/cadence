@@ -102,6 +102,25 @@ export interface ApiCircleDetail {
   members: ApiCircleMember[];
 }
 
+export interface ApiPactProgress {
+  userId: string;
+  displayName: string;
+  completed: boolean;
+  completedAt?: string;
+}
+
+export interface ApiPact {
+  id: string;
+  circleId: string;
+  text: string;
+  startDate: string; // YYYY-MM-DD
+  endDate: string;
+  createdBy: string;
+  createdAt: string;
+  linkedHabitTemplate?: Record<string, unknown>;
+  progress: ApiPactProgress[];
+}
+
 // Mirrors Go insightDTO. Wraps the engine's rendered output so the UI can
 // render localized copy from params later if we want, but for v1 we just
 // display renderedText directly.
