@@ -4,6 +4,7 @@ export {
   getStatus,
   requestPermissions,
   readDailySummary,
+  readWorkoutsRange,
   HealthKitError,
 } from './appleHealth';
 export { detectFromSummary } from './autodetect';

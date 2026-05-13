@@ -278,4 +278,30 @@ function activityNameFor(activityType: number): string {
   }
 }
 
+// Read all workouts whose start time falls inside [start, end] (inclusive).
+// Used by the Running deep dive to render weekly mileage + trend without
+// firing one query per day. Workouts are returned most-recent-first.
+export async function readWorkoutsRange(
+  start: Date,
+  end: Date,
+): Promise<WorkoutSummary[]> {
+  if (!isIOS) return [];
+  try {
+    const workouts = await queryWorkoutSamples({
+      limit: -1,
+      ascending: false,
+      filter: { date: { startDate: start, endDate: end } },
+    });
+    return workouts.map((workout) => ({
+      activityName: activityNameFor(workout.workoutActivityType),
+      startsAt: workout.startDate.toISOString(),
+      endsAt: workout.endDate.toISOString(),
+      durationMinutes: Math.round(workout.duration.quantity / 60),
+      distanceMeters: workout.totalDistance?.quantity,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export type { DailySummary, HealthAuthStatus, WorkoutSummary };

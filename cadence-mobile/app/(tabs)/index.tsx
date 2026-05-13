@@ -7,11 +7,17 @@ import { Button } from '@/components/primitives';
 import { Screen, SectionLabel } from '@/components/layout';
 import { HabitRow } from '@/components/habit';
 import { InsightCard } from '@/components/insight';
-import { WeekStrip, CheckInRow, RhythmStatsCard } from '@/components/today';
+import { WeekStrip, CheckInRow, RhythmStatsCard, TrainingCard } from '@/components/today';
 import { endpoints } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queryKeys';
 import { apiClient } from '@/lib/client';
-import { detectFromSummary, getStatus, readDailySummary } from '@/lib/health';
+import { detectFromSummary, getStatus, readDailySummary, readWorkoutsRange } from '@/lib/health';
+import {
+  dailyMetersForWeek,
+  filterRuns,
+  startOfWeek,
+  todayWeekdayIndex as currentWeekdayIndex,
+} from '@/lib/running';
 import { colors } from '@/theme/tokens';
 import { mockInsight, mockWeek } from '@/lib/mockData';
 import type { ApiHabit } from '@/lib/api/types';
@@ -106,6 +112,28 @@ export default function TodayScreen() {
     staleTime: 5 * 60_000,
   });
 
+  // Fetch the current week's workouts so the training card can render its
+  // mileage + week-bars without making the Running screen the only entry
+  // point. Range is Mon-of-this-week → now. Cheap (one bridge call) and the
+  // result feeds both the card and a tappable handoff to /running.
+  const weekStart = useMemo(() => startOfWeek(new Date()), []);
+  const weekWorkoutsQuery = useQuery({
+    queryKey: ['health-workouts-week', weekStart.toISOString()],
+    queryFn: () => readWorkoutsRange(weekStart, new Date()),
+    enabled: healthStatusQuery.data === 'authorized',
+    staleTime: 5 * 60_000,
+  });
+  const weekRuns = useMemo(() => filterRuns(weekWorkoutsQuery.data ?? []), [weekWorkoutsQuery.data]);
+  const weekDailyMeters = useMemo(
+    () => dailyMetersForWeek(weekRuns, weekStart),
+    [weekRuns, weekStart],
+  );
+  const weekTotalMeters = useMemo(
+    () => weekDailyMeters.reduce((a, b) => a + b, 0),
+    [weekDailyMeters],
+  );
+  const hasAnyRuns = weekRuns.length > 0;
+
   const habits = useMemo(() => habitsQuery.data?.map(toHabit) ?? [], [habitsQuery.data]);
   const doneCount = useMemo(() => habits.filter((h) => h.doneToday).length, [habits]);
 
@@ -160,6 +188,18 @@ export default function TodayScreen() {
       <View className="mt-6">
         <InsightCard insight={mockInsight} />
       </View>
+
+      {hasAnyRuns ? (
+        <View className="mt-3">
+          <TrainingCard
+            weekTotalMeters={weekTotalMeters}
+            weekDailyMeters={weekDailyMeters}
+            todayWeekdayIndex={currentWeekdayIndex()}
+            runCountThisWeek={weekRuns.length}
+            onPress={() => router.push('/running')}
+          />
+        </View>
+      ) : null}
 
       <SectionLabel label={`HABITS · ${doneCount} OF ${habits.length}`} />
 
