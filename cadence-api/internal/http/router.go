@@ -25,6 +25,7 @@ type Deps struct {
 	CheckIns       *checkin.Repository
 	DailySummaries *dailysum.Repository
 	InsightEngine  *insight.Engine
+	Insights       *insight.Repository
 }
 
 func NewRouter(deps Deps) http.Handler {
@@ -56,8 +57,10 @@ func NewRouter(deps Deps) http.Handler {
 		dailySums := newDailySumHandler(deps.DailySummaries)
 		r.Put("/daily-summaries/{date}", dailySums.put)
 
-		if deps.InsightEngine != nil {
-			insights := newInsightsHandler(deps.InsightEngine)
+		if deps.InsightEngine != nil && deps.Insights != nil {
+			insights := newInsightsHandler(deps.InsightEngine, deps.Insights)
+			r.Get("/insights/today", insights.today)
+			r.Get("/insights", insights.list)
 			r.Post("/insights/compute", insights.compute)
 		}
 	})

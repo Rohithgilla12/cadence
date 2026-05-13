@@ -73,6 +73,7 @@ func main() {
 			CheckIns:       checkInRepo,
 			DailySummaries: dailySumRepo,
 			InsightEngine:  insightEngine,
+			Insights:       insightRepo,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
