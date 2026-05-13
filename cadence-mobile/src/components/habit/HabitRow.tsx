@@ -9,9 +9,14 @@ import type { Habit } from '@/types';
 interface HabitRowProps {
   habit: Habit;
   onToggle?: (next: boolean) => void | Promise<void>;
+  // When present, tapping the row body navigates to habit detail and the
+  // checkmark circle becomes its own tap zone for toggling. Mirrors the
+  // iOS Reminders interaction model — discoverable without a long-press.
+  // When omitted, the whole row toggles (legacy behaviour).
+  onOpen?: () => void;
 }
 
-export function HabitRow({ habit, onToggle }: HabitRowProps) {
+export function HabitRow({ habit, onToggle, onOpen }: HabitRowProps) {
   const [isDone, setIsDone] = useState(habit.doneToday);
 
   // Reconcile local state when server state changes (e.g., after a mutation settles).
@@ -19,7 +24,7 @@ export function HabitRow({ habit, onToggle }: HabitRowProps) {
     setIsDone(habit.doneToday);
   }, [habit.doneToday]);
 
-  async function handlePress() {
+  async function handleToggle() {
     const next = !isDone;
     setIsDone(next);
     try {
@@ -30,28 +35,51 @@ export function HabitRow({ habit, onToggle }: HabitRowProps) {
   }
 
   const HabitIcon = iconFor[habit.icon];
-
   const targetText = habit.target ? `${habit.target.value} ${habit.target.unit}` : '';
+
+  const outerProps = onOpen
+    ? {
+        onPress: onOpen,
+        accessibilityRole: 'button' as const,
+        accessibilityLabel: `${habit.name}, open detail`,
+      }
+    : {
+        onPress: handleToggle,
+        accessibilityRole: 'checkbox' as const,
+        accessibilityState: { checked: isDone },
+        accessibilityLabel: `${habit.name}${isDone ? ', done' : ''}`,
+      };
+
+  const checkCircle = (
+    <View
+      style={{ width: 24, height: 24 }}
+      className={`rounded-full items-center justify-center border ${
+        isDone ? 'bg-moss border-moss' : 'border-hairline-2'
+      }`}
+    >
+      {isDone && <IconCheck size={14} color="#FFFFFF" strokeWidth={2} />}
+    </View>
+  );
 
   return (
     <Pressable
-      onPress={handlePress}
+      {...outerProps}
       className="flex-row items-center gap-3 bg-card border border-hairline rounded-xl p-3 active:opacity-90"
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked: isDone }}
-      accessibilityLabel={`${habit.name}${isDone ? ', done' : ''}`}
     >
-      {/* Check circle */}
-      <View
-        style={{ width: 24, height: 24 }}
-        className={`rounded-full items-center justify-center border ${
-          isDone ? 'bg-moss border-moss' : 'border-hairline-2'
-        }`}
-      >
-        {isDone && <IconCheck size={14} color="#FFFFFF" strokeWidth={2} />}
-      </View>
+      {onOpen ? (
+        <Pressable
+          onPress={handleToggle}
+          hitSlop={8}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: isDone }}
+          accessibilityLabel={isDone ? 'Mark not done' : 'Mark done'}
+        >
+          {checkCircle}
+        </Pressable>
+      ) : (
+        checkCircle
+      )}
 
-      {/* Habit icon + text */}
       <View className="flex-1 flex-row items-center gap-2">
         {HabitIcon && (
           <HabitIcon size={16} color={isDone ? colors.mossLighter : colors.ink2} strokeWidth={1.5} />
@@ -74,7 +102,6 @@ export function HabitRow({ habit, onToggle }: HabitRowProps) {
         </View>
       </View>
 
-      {/* Streak pill */}
       <StreakPill count={habit.streak} />
     </Pressable>
   );

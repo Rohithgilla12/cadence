@@ -286,6 +286,7 @@ export default function TodayScreen() {
               onToggle={async () => {
                 await toggleMutation.mutateAsync(habit.id);
               }}
+              onOpen={() => router.push({ pathname: '/habit/[id]', params: { id: habit.id } })}
             />
           ))}
         </View>
