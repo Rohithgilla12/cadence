@@ -75,6 +75,38 @@ function endOfLocalDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
 }
 
+// "Last night's sleep" window: 6pm of the previous calendar day to 11am of the
+// given day. Naps later in the day are intentionally excluded — the home tile
+// is about overnight rhythm. Most sleep sessions fall entirely within this
+// window; an outlier (shift worker, transatlantic flight) would simply not
+// show, which we prefer to surfacing a misleading number.
+function lastNightWindow(date: Date): { startDate: Date; endDate: Date } {
+  const startDate = new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1, 18, 0, 0, 0);
+  const endDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 11, 0, 0, 0);
+  return { startDate, endDate };
+}
+
+// Merge overlapping [start, end] intervals into a deduplicated set. HealthKit
+// often returns multiple overlapping sleep samples (e.g. Apple Watch logs a
+// top-level "asleep" interval AND stage-specific "asleepCore/Deep/REM"
+// intervals covering the same time). Summing those without merging
+// triple-counts the same minutes — that's how a real 7h night becomes 14h.
+function mergeIntervals(intervals: ReadonlyArray<readonly [number, number]>): Array<[number, number]> {
+  if (intervals.length === 0) return [];
+  const sorted = [...intervals].sort((a, b) => a[0] - b[0]);
+  const merged: Array<[number, number]> = [[sorted[0][0], sorted[0][1]]];
+  for (let i = 1; i < sorted.length; i++) {
+    const last = merged[merged.length - 1];
+    const [start, end] = sorted[i];
+    if (start <= last[1]) {
+      last[1] = Math.max(last[1], end);
+    } else {
+      merged.push([start, end]);
+    }
+  }
+  return merged;
+}
+
 function toIsoDate(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -94,17 +126,24 @@ export async function readDailySummary(date: Date): Promise<DailySummary> {
   const dateFilter = { date: { startDate, endDate } };
 
   try {
+    const sleepWindow = lastNightWindow(date);
     const sleepSamples = await queryCategorySamples(
       'HKCategoryTypeIdentifierSleepAnalysis',
-      { limit: -1, filter: dateFilter },
+      { limit: -1, filter: { date: sleepWindow } },
     );
-    // CategoryValueSleepAnalysis: inBed=0, asleep/asleepUnspecified=1, awake=2,
-    // asleepCore=3, asleepDeep=4, asleepREM=5. Count value >= 1 && value !== 2 as sleep time.
-    const sleepMilliseconds = sleepSamples
+    // CategoryValueSleepAnalysis: inBed=0, asleepUnspecified=1, awake=2,
+    // asleepCore=3, asleepDeep=4, asleepREM=5. Sleep = any value >= 1 except 2.
+    // Merge intervals before summing — Apple Watch produces overlapping
+    // samples (top-level asleep + per-stage core/deep/REM) that would otherwise
+    // double-count.
+    const sleepIntervals: Array<[number, number]> = sleepSamples
       .filter((sample) => sample.value >= 1 && sample.value !== 2)
-      .reduce((accumulated, sample) => {
-        return accumulated + (sample.endDate.getTime() - sample.startDate.getTime());
-      }, 0);
+      .map((sample) => [sample.startDate.getTime(), sample.endDate.getTime()]);
+    const mergedIntervals = mergeIntervals(sleepIntervals);
+    const sleepMilliseconds = mergedIntervals.reduce(
+      (total, [start, end]) => total + (end - start),
+      0,
+    );
     if (sleepMilliseconds > 0) {
       summary.sleepHours = Math.round((sleepMilliseconds / 3_600_000) * 10) / 10;
     }
