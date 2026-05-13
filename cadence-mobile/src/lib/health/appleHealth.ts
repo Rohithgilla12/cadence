@@ -8,7 +8,7 @@ import {
   requestAuthorization,
 } from '@kingstinct/react-native-healthkit';
 
-import type { DailySummary, HealthAuthStatus, WorkoutSummary } from './types';
+import type { DailySummary, HealthAuthStatus, SleepStages, WorkoutSummary } from './types';
 import { READ_SAMPLE_TYPES } from './permissions';
 
 const isIOS = Platform.OS === 'ios';
@@ -132,10 +132,10 @@ export async function readDailySummary(date: Date): Promise<DailySummary> {
       { limit: -1, filter: { date: sleepWindow } },
     );
     // CategoryValueSleepAnalysis: inBed=0, asleepUnspecified=1, awake=2,
-    // asleepCore=3, asleepDeep=4, asleepREM=5. Sleep = any value >= 1 except 2.
-    // Merge intervals before summing — Apple Watch produces overlapping
-    // samples (top-level asleep + per-stage core/deep/REM) that would otherwise
-    // double-count.
+    // asleepCore=3, asleepDeep=4, asleepREM=5. Total sleep = any value >= 1
+    // except 2. Merge intervals before summing — Apple Watch produces
+    // overlapping samples (top-level asleep + per-stage core/deep/REM) that
+    // would otherwise double-count.
     const sleepIntervals: Array<[number, number]> = sleepSamples
       .filter((sample) => sample.value >= 1 && sample.value !== 2)
       .map((sample) => [sample.startDate.getTime(), sample.endDate.getTime()]);
@@ -146,6 +146,37 @@ export async function readDailySummary(date: Date): Promise<DailySummary> {
     );
     if (sleepMilliseconds > 0) {
       summary.sleepHours = Math.round((sleepMilliseconds / 3_600_000) * 10) / 10;
+    }
+
+    // Per-stage breakdown. Stages (3/4/5) don't overlap within a single
+    // source, so summing each value's intervals directly is safe — and
+    // sums independently from the merged "all sleep" total above.
+    const stages: SleepStages = {
+      asleepUnspecifiedMinutes: 0,
+      deepMinutes: 0,
+      remMinutes: 0,
+      coreMinutes: 0,
+      awakeMinutes: 0,
+    };
+    const minutesBetween = (start: Date, end: Date) =>
+      Math.max(0, (end.getTime() - start.getTime()) / 60_000);
+    for (const sample of sleepSamples) {
+      const minutes = minutesBetween(sample.startDate, sample.endDate);
+      if (sample.value === 1) stages.asleepUnspecifiedMinutes += minutes;
+      else if (sample.value === 2) stages.awakeMinutes += minutes;
+      else if (sample.value === 3) stages.coreMinutes += minutes;
+      else if (sample.value === 4) stages.deepMinutes += minutes;
+      else if (sample.value === 5) stages.remMinutes += minutes;
+    }
+    const roundMinutes = (m: number) => Math.round(m);
+    if (mergedIntervals.length > 0) {
+      summary.sleepStages = {
+        asleepUnspecifiedMinutes: roundMinutes(stages.asleepUnspecifiedMinutes),
+        deepMinutes: roundMinutes(stages.deepMinutes),
+        remMinutes: roundMinutes(stages.remMinutes),
+        coreMinutes: roundMinutes(stages.coreMinutes),
+        awakeMinutes: roundMinutes(stages.awakeMinutes),
+      };
     }
   } catch {}
 
@@ -168,6 +199,48 @@ export async function readDailySummary(date: Date): Promise<DailySummary> {
     );
     if (energyResult?.sumQuantity?.quantity != null) {
       summary.activeEnergyKcal = Math.round(energyResult.sumQuantity.quantity);
+    }
+  } catch {}
+
+  try {
+    const distanceResult = await queryStatisticsForQuantity(
+      'HKQuantityTypeIdentifierDistanceWalkingRunning',
+      ['cumulativeSum'],
+      { filter: dateFilter },
+    );
+    if (distanceResult?.sumQuantity?.quantity != null) {
+      // Default unit for distance quantities is meters.
+      summary.distanceMeters = Math.round(distanceResult.sumQuantity.quantity);
+    }
+  } catch {}
+
+  // Resting heart rate and HRV are sampled, not cumulative. mostRecent gives
+  // us today's freshest reading.
+  try {
+    const rhrResult = await queryStatisticsForQuantity(
+      'HKQuantityTypeIdentifierRestingHeartRate',
+      ['mostRecent'],
+      { filter: dateFilter },
+    );
+    const recent = (rhrResult as { mostRecentQuantity?: { quantity: number } })
+      ?.mostRecentQuantity;
+    if (recent?.quantity != null) {
+      summary.restingHeartRate = Math.round(recent.quantity);
+    }
+  } catch {}
+
+  try {
+    const hrvResult = await queryStatisticsForQuantity(
+      'HKQuantityTypeIdentifierHeartRateVariabilitySDNN',
+      ['mostRecent'],
+      { filter: dateFilter },
+    );
+    const recent = (hrvResult as { mostRecentQuantity?: { quantity: number } })
+      ?.mostRecentQuantity;
+    if (recent?.quantity != null) {
+      // HRV SDNN reports in seconds — multiply for ms which is what humans
+      // recognize (e.g. "42 ms").
+      summary.hrvMs = Math.round(recent.quantity * 1000);
     }
   } catch {}
 

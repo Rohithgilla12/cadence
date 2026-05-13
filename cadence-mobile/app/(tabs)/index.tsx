@@ -194,6 +194,7 @@ export default function TodayScreen() {
           sleepHours: checkInQuery.data.sleepHours,
         } : null}
         healthSleepHours={dailySummaryQuery.data?.sleepHours}
+        healthSleepStages={dailySummaryQuery.data?.sleepStages}
       />
 
       {dailySummaryQuery.data ? (
@@ -201,6 +202,9 @@ export default function TodayScreen() {
           <RhythmStatsCard
             steps={dailySummaryQuery.data.steps}
             activeEnergyKcal={dailySummaryQuery.data.activeEnergyKcal}
+            distanceMeters={dailySummaryQuery.data.distanceMeters}
+            restingHeartRate={dailySummaryQuery.data.restingHeartRate}
+            hrvMs={dailySummaryQuery.data.hrvMs}
             workouts={dailySummaryQuery.data.workouts}
           />
         </View>

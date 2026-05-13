@@ -8,4 +8,9 @@ export {
 } from './appleHealth';
 export { detectFromSummary } from './autodetect';
 export type { AutodetectMatch } from './autodetect';
-export type { DailySummary, HealthAuthStatus, WorkoutSummary } from './types';
+export type {
+  DailySummary,
+  HealthAuthStatus,
+  SleepStages,
+  WorkoutSummary,
+} from './types';

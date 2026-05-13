@@ -2,6 +2,7 @@ import { Pressable, View, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { Card } from '@/components/primitives';
+import type { SleepStages } from '@/lib/health';
 import type { CheckIn, Mood } from '@/types';
 
 interface CheckInRowProps {
@@ -10,6 +11,7 @@ interface CheckInRowProps {
   // Used only when checkIn.sleepHours is undefined — the user's manual log
   // is always canonical (CLAUDE.md "never auto-uncheck").
   healthSleepHours?: number;
+  healthSleepStages?: SleepStages;
 }
 
 function formatSleepHours(hours: number): string {
@@ -41,11 +43,32 @@ function MoodSection({ mood }: { mood?: Mood }) {
 interface SleepSectionProps {
   manualHours?: number;
   fallbackHours?: number;
+  stages?: SleepStages;
 }
 
-function SleepSection({ manualHours, fallbackHours }: SleepSectionProps) {
+function formatStageHours(minutes: number): string {
+  const wholeHours = Math.floor(minutes / 60);
+  const remainingMinutes = Math.round(minutes - wholeHours * 60);
+  if (wholeHours === 0) return `${remainingMinutes}m`;
+  if (remainingMinutes === 0) return `${wholeHours}h`;
+  return `${wholeHours}h ${remainingMinutes}m`;
+}
+
+function stagesCaption(stages: SleepStages): string | null {
+  // Only render the breakdown when the watch actually staged the sleep —
+  // older devices emit only "asleepUnspecified" and per-stage is useless.
+  const stageParts: string[] = [];
+  if (stages.deepMinutes > 0) stageParts.push(`Deep ${formatStageHours(stages.deepMinutes)}`);
+  if (stages.remMinutes > 0) stageParts.push(`REM ${formatStageHours(stages.remMinutes)}`);
+  if (stages.coreMinutes > 0) stageParts.push(`Core ${formatStageHours(stages.coreMinutes)}`);
+  if (stageParts.length === 0) return null;
+  return stageParts.join(' · ');
+}
+
+function SleepSection({ manualHours, fallbackHours, stages }: SleepSectionProps) {
   const hours = manualHours ?? fallbackHours;
   const fromHealth = manualHours === undefined && fallbackHours !== undefined;
+  const breakdown = fromHealth && stages ? stagesCaption(stages) : null;
 
   return (
     <View className="flex-1">
@@ -53,7 +76,9 @@ function SleepSection({ manualHours, fallbackHours }: SleepSectionProps) {
       {hours !== undefined ? (
         <>
           <Text className="text-h3 font-serif text-ink">{formatSleepHours(hours)}</Text>
-          {fromHealth ? (
+          {breakdown ? (
+            <Text className="text-caption text-ink-3 mt-1">{breakdown}</Text>
+          ) : fromHealth ? (
             <Text className="text-caption text-ink-3 mt-1">from Apple Health</Text>
           ) : null}
         </>
@@ -64,7 +89,7 @@ function SleepSection({ manualHours, fallbackHours }: SleepSectionProps) {
   );
 }
 
-export function CheckInRow({ checkIn, healthSleepHours }: CheckInRowProps) {
+export function CheckInRow({ checkIn, healthSleepHours, healthSleepStages }: CheckInRowProps) {
   const ci = checkIn ?? {};
   const router = useRouter();
 
@@ -79,7 +104,11 @@ export function CheckInRow({ checkIn, healthSleepHours }: CheckInRowProps) {
         <View className="flex-row">
           <MoodSection mood={ci.mood} />
           <View className="w-px bg-hairline mx-4" />
-          <SleepSection manualHours={ci.sleepHours} fallbackHours={healthSleepHours} />
+          <SleepSection
+            manualHours={ci.sleepHours}
+            fallbackHours={healthSleepHours}
+            stages={healthSleepStages}
+          />
         </View>
       </Pressable>
     </Card>
