@@ -8,6 +8,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { BrandMark } from '@/components/brand';
 import { AuthProvider, useAuth, configureGoogleSignIn } from '@/lib/auth';
 import { endpoints } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queryKeys';
@@ -58,7 +59,8 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (status === 'loading' || (status === 'signed-in' && meQuery.isLoading)) {
     return (
-      <View className="flex-1 items-center justify-center bg-bg">
+      <View className="flex-1 items-center justify-center bg-bg gap-8">
+        <BrandMark size={64} variant="cream" />
         <ActivityIndicator color={colors.moss} />
       </View>
     );

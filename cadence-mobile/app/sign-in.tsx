@@ -4,6 +4,7 @@ import { Alert, Platform, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SignInButton } from '@/components/auth/SignInButton';
+import { BrandMark } from '@/components/brand';
 import { signInWithApple, signInWithGoogle } from '@/lib/auth';
 import { colors, screenPaddingX } from '@/theme/tokens';
 
@@ -43,8 +44,9 @@ export default function SignInScreen() {
       }}
     >
       <View className="flex-1 justify-center">
-        <Text className="font-serif text-display text-ink">Cadence</Text>
-        <Text className="mt-3 text-body text-ink-2">
+        <BrandMark size={64} variant="cream" />
+        <Text className="font-serif text-display text-ink mt-8">Cadence</Text>
+        <Text className="mt-3 font-serif italic text-body text-ink-2">
           The quiet rhythm of becoming.
         </Text>
       </View>
