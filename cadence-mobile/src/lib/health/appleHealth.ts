@@ -1,126 +1,44 @@
 import { Platform } from 'react-native';
+import {
+  getRequestStatusForAuthorization,
+  isHealthDataAvailable,
+  queryCategorySamples,
+  queryStatisticsForQuantity,
+  queryWorkoutSamples,
+  requestAuthorization,
+} from '@kingstinct/react-native-healthkit';
 
 import type { DailySummary, HealthAuthStatus, WorkoutSummary } from './types';
 import { READ_SAMPLE_TYPES } from './permissions';
 
 const isIOS = Platform.OS === 'ios';
 
-// v14 of @kingstinct/react-native-healthkit uses Nitro modules and a modular API
-// surface that is fundamentally different from the v9 API the plan was authored
-// against. Key changes:
-//
-//   - No single default export. Functions live on named module objects (Core,
-//     CategoryTypes, QuantityTypes, Workouts) imported from the package.
-//   - requestAuthorization({ toRead, toShare }) — not ([], reads[]).
-//   - getRequestStatusForAuthorization({ toRead }) — returns AuthorizationRequestStatus
-//     enum (0=unknown, 1=shouldRequest, 2=unnecessary), not a string.
-//   - queryCategorySamples(id, { limit, filter: { date: { startDate, endDate } } })
-//   - queryStatisticsForQuantity(id, stats, { filter: { date: { startDate, endDate } } })
-//   - queryWorkoutSamples({ limit, filter: { date: { startDate, endDate } } })
-//   - WorkoutProxy.workoutActivityType is the WorkoutActivityType enum, and
-//     .duration is a Quantity ({ unit, quantity }) — not a raw number.
-//
-// The exported surface (isAvailable, isAuthorized, getStatus, requestPermissions,
-// readDailySummary) is unchanged from the plan.
-
-// Minimal local interface for the v14 module objects we use.
-// Casting through this keeps the non-iOS import conditional and avoids any.
-interface HealthkitModules {
-  Core: {
-    isHealthDataAvailable(): boolean;
-    getRequestStatusForAuthorization(toCheck: {
-      toRead?: readonly string[];
-      toShare?: readonly string[];
-    }): Promise<number>;
-    requestAuthorization(toRequest: {
-      toRead?: readonly string[];
-      toShare?: readonly string[];
-    }): Promise<boolean>;
-  };
-  CategoryTypes: {
-    queryCategorySamples(
-      identifier: string,
-      options: {
-        limit: number;
-        ascending?: boolean;
-        filter?: { date?: { startDate?: Date; endDate?: Date } };
-      },
-    ): Promise<ReadonlyArray<{
-      startDate: Date;
-      endDate: Date;
-      value: number;
-    }>>;
-  };
-  QuantityTypes: {
-    queryStatisticsForQuantity(
-      identifier: string,
-      statistics: readonly string[],
-      options?: {
-        filter?: { date?: { startDate?: Date; endDate?: Date } };
-      },
-    ): Promise<{ sumQuantity?: { unit: string; quantity: number } }>;
-  };
-  Workouts: {
-    queryWorkoutSamples(options: {
-      limit: number;
-      ascending?: boolean;
-      filter?: { date?: { startDate?: Date; endDate?: Date } };
-    }): Promise<ReadonlyArray<{
-      workoutActivityType: number;
-      startDate: Date;
-      endDate: Date;
-      duration: { unit: string; quantity: number };
-      totalDistance?: { unit: string; quantity: number };
-    }>>;
-  };
-}
-
-function isHealthkitLibrary(value: unknown): value is {
-  Core: HealthkitModules['Core'];
-  CategoryTypes: HealthkitModules['CategoryTypes'];
-  QuantityTypes: HealthkitModules['QuantityTypes'];
-  Workouts: HealthkitModules['Workouts'];
-} {
-  if (typeof value !== 'object' || value === null) return false;
-  const candidate = value as Record<string, unknown>;
-  return (
-    typeof candidate['Core'] === 'object' && candidate['Core'] !== null &&
-    typeof candidate['CategoryTypes'] === 'object' && candidate['CategoryTypes'] !== null &&
-    typeof candidate['QuantityTypes'] === 'object' && candidate['QuantityTypes'] !== null &&
-    typeof candidate['Workouts'] === 'object' && candidate['Workouts'] !== null
-  );
-}
-
-async function loadHealthkitModules(): Promise<HealthkitModules | null> {
-  if (!isIOS) return null;
-  try {
-    // Dynamic import so non-iOS bundles never load the Nitro native module.
-    const lib: unknown = await import('@kingstinct/react-native-healthkit');
-    if (!isHealthkitLibrary(lib)) return null;
-    return {
-      Core: lib.Core,
-      CategoryTypes: lib.CategoryTypes,
-      QuantityTypes: lib.QuantityTypes,
-      Workouts: lib.Workouts,
-    };
-  } catch {
-    return null;
-  }
-}
+// v14 of @kingstinct/react-native-healthkit exposes flat named exports
+// (requestAuthorization, queryCategorySamples, queryStatisticsForQuantity,
+// queryWorkoutSamples, ...) rather than the Core/CategoryTypes/QuantityTypes
+// namespace pattern from older versions. On non-iOS platforms the package
+// resolves to a stub that returns safe defaults, so we don't need a runtime
+// import guard — only a Platform.OS guard on functions that mutate state.
 
 // AuthorizationRequestStatus.unnecessary === 2 in v14
 const AUTHORIZATION_REQUEST_STATUS_UNNECESSARY = 2;
 
+export class HealthKitError extends Error {
+  constructor(message: string, public readonly cause?: unknown) {
+    super(message);
+    this.name = 'HealthKitError';
+  }
+}
+
 export function isAvailable(): boolean {
-  return isIOS;
+  return isIOS && isHealthDataAvailable();
 }
 
 export async function isAuthorized(): Promise<boolean> {
-  const modules = await loadHealthkitModules();
-  if (!modules) return false;
+  if (!isIOS) return false;
   try {
-    const status = await modules.Core.getRequestStatusForAuthorization({
-      toRead: READ_SAMPLE_TYPES as unknown as readonly string[],
+    const status = await getRequestStatusForAuthorization({
+      toRead: READ_SAMPLE_TYPES,
     });
     return status === AUTHORIZATION_REQUEST_STATUS_UNNECESSARY;
   } catch {
@@ -133,27 +51,11 @@ export async function getStatus(): Promise<HealthAuthStatus> {
   return (await isAuthorized()) ? 'authorized' : 'unknown';
 }
 
-export class HealthKitError extends Error {
-  constructor(message: string, public readonly cause?: unknown) {
-    super(message);
-    this.name = 'HealthKitError';
-  }
-}
-
 export async function requestPermissions(): Promise<HealthAuthStatus> {
-  const modules = await loadHealthkitModules();
-  if (!modules) {
-    if (!isIOS) return 'unavailable';
-    // iOS but native module didn't load — almost certainly an entitlement /
-    // capability problem in the build. Throw so the caller can show the real
-    // reason instead of a generic 'denied'.
-    throw new HealthKitError(
-      'HealthKit native module failed to load. Check that the HealthKit capability is enabled for the App ID in Apple Developer Portal and that the build was provisioned with the matching profile.',
-    );
-  }
+  if (!isIOS) return 'unavailable';
   try {
-    await modules.Core.requestAuthorization({
-      toRead: READ_SAMPLE_TYPES as unknown as readonly string[],
+    await requestAuthorization({
+      toRead: READ_SAMPLE_TYPES,
       toShare: [],
     });
     return (await isAuthorized()) ? 'authorized' : 'denied';
@@ -185,15 +87,14 @@ export async function readDailySummary(date: Date): Promise<DailySummary> {
     date: toIsoDate(date),
     workouts: [],
   };
-  const modules = await loadHealthkitModules();
-  if (!modules) return summary;
+  if (!isIOS) return summary;
 
   const startDate = startOfLocalDay(date);
   const endDate = endOfLocalDay(date);
   const dateFilter = { date: { startDate, endDate } };
 
   try {
-    const sleepSamples = await modules.CategoryTypes.queryCategorySamples(
+    const sleepSamples = await queryCategorySamples(
       'HKCategoryTypeIdentifierSleepAnalysis',
       { limit: -1, filter: dateFilter },
     );
@@ -210,7 +111,7 @@ export async function readDailySummary(date: Date): Promise<DailySummary> {
   } catch {}
 
   try {
-    const stepsResult = await modules.QuantityTypes.queryStatisticsForQuantity(
+    const stepsResult = await queryStatisticsForQuantity(
       'HKQuantityTypeIdentifierStepCount',
       ['cumulativeSum'],
       { filter: dateFilter },
@@ -221,7 +122,7 @@ export async function readDailySummary(date: Date): Promise<DailySummary> {
   } catch {}
 
   try {
-    const energyResult = await modules.QuantityTypes.queryStatisticsForQuantity(
+    const energyResult = await queryStatisticsForQuantity(
       'HKQuantityTypeIdentifierActiveEnergyBurned',
       ['cumulativeSum'],
       { filter: dateFilter },
@@ -232,7 +133,7 @@ export async function readDailySummary(date: Date): Promise<DailySummary> {
   } catch {}
 
   try {
-    const workouts = await modules.Workouts.queryWorkoutSamples({
+    const workouts = await queryWorkoutSamples({
       limit: -1,
       filter: dateFilter,
     });
