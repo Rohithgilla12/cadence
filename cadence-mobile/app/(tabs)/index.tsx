@@ -56,6 +56,12 @@ function toHabit(api: ApiHabit): Habit {
 // log is the source of truth).
 const detectionFiredFor = new Set<string>();
 
+// Module-scoped fingerprint cache for daily-summary uploads. Each entry is
+// `${date}:${json}` — same content for the same day = no-op. A failed upload
+// removes its entry so we retry on the next render that produces the same
+// summary.
+const uploadedFingerprints = new Set<string>();
+
 export default function TodayScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -111,6 +117,34 @@ export default function TodayScreen() {
     enabled: healthStatusQuery.data === 'authorized',
     staleTime: 5 * 60_000,
   });
+
+  // PRD §9 — sync on-device daily summaries to the server so the correlation
+  // worker has data to chew on. Hash-deduped per day so a re-render doesn't
+  // re-PUT the same numbers. Errors are quiet: a transient network blip
+  // shouldn't show an alert; tomorrow's query will catch up.
+  useEffect(() => {
+    const summary = dailySummaryQuery.data;
+    if (!summary) return;
+    const payload = {
+      sleepHours: summary.sleepHours,
+      sleepDeepMinutes: summary.sleepStages?.deepMinutes,
+      sleepRemMinutes: summary.sleepStages?.remMinutes,
+      sleepCoreMinutes: summary.sleepStages?.coreMinutes,
+      steps: summary.steps,
+      distanceMeters: summary.distanceMeters,
+      activeEnergyKcal: summary.activeEnergyKcal,
+      restingHeartRate: summary.restingHeartRate,
+      hrvMs: summary.hrvMs,
+      source: 'apple_health' as const,
+    };
+    const fingerprint = JSON.stringify(payload);
+    const dedupeKey = `${summary.date}:${fingerprint}`;
+    if (uploadedFingerprints.has(dedupeKey)) return;
+    uploadedFingerprints.add(dedupeKey);
+    endpoints
+      .putDailySummary(apiClient)(summary.date, payload)
+      .catch(() => uploadedFingerprints.delete(dedupeKey));
+  }, [dailySummaryQuery.data]);
 
   // Fetch a 6-week window of workouts. The training card shows mileage for
   // this week, but uses the broader window to decide whether to render at

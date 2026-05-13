@@ -86,4 +86,31 @@ export const endpoints = {
         body: JSON.stringify(body),
       })
       .then((r) => r.checkIn),
+
+  putDailySummary: (client: ApiClient) => (date: string, body: DailySummaryUpload) =>
+    client.request<{ dailySummary: ApiDailySummary }>(`/v1/daily-summaries/${date}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
 };
+
+// Mirrors the Go putDailySumRequest. All fields optional — client uploads
+// whatever it has and the server preserves anything not supplied.
+export interface DailySummaryUpload {
+  sleepHours?: number;
+  sleepDeepMinutes?: number;
+  sleepRemMinutes?: number;
+  sleepCoreMinutes?: number;
+  steps?: number;
+  distanceMeters?: number;
+  activeEnergyKcal?: number;
+  restingHeartRate?: number;
+  hrvMs?: number;
+  source?: 'apple_health' | 'health_connect';
+}
+
+export interface ApiDailySummary extends DailySummaryUpload {
+  date: string;
+  source: 'apple_health' | 'health_connect';
+  updatedAt: string;
+}
