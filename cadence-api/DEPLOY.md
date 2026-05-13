@@ -26,7 +26,7 @@
 
 ### 2. Cloudflare Zero Trust
 - Existing Cloudflare tunnel for `gilla.fun` (per PRD §13).
-- Create a new public hostname inside the tunnel pointing at `http://cadence-api:8080`. Suggested hostname: `api.cadence.gilla.fun`. (Repeat for `webhooks.cadence.gilla.fun` when Strava lands.)
+- Create a new public hostname inside the tunnel pointing at `http://cadence-api:8080`. Hostname: `cadence-api.gilla.fun`. **Two-level subdomain matters** — Cloudflare's free Universal SSL covers `gilla.fun` and `*.gilla.fun` but not deeper (`api.cadence.gilla.fun` would need Advanced Certificate Manager at $10/mo, which we declined). When Strava lands, use `cadence-webhooks.gilla.fun` for the same reason.
 - Generate a **connector token** for the tunnel (Networks → Tunnels → your tunnel → "Install connector" → "Docker"). Copy the token portion of the printed `docker run` command — the long string after `--token`. **This is `CLOUDFLARED_TUNNEL_TOKEN`.**
 
 ### 3. Firebase
@@ -136,14 +136,14 @@ docker logs cadence-cloudflared --tail 20   # should show "Registered tunnel con
 From your laptop:
 
 ```bash
-curl -s https://api.cadence.gilla.fun/health | jq
+curl -s https://cadence-api.gilla.fun/health | jq
 # {"status":"ok","database":"ok","time":"..."}
 ```
 
 Then point the mobile app at production by editing `cadence-mobile/.env`:
 
 ```env
-EXPO_PUBLIC_API_BASE_URL=https://api.cadence.gilla.fun
+EXPO_PUBLIC_API_BASE_URL=https://cadence-api.gilla.fun
 ```
 
 …and rebuild on the simulator.
@@ -189,7 +189,7 @@ already serving gilla.fun on the VPS:
 2. After the stack is up, attach the existing cloudflared to the cadence
    network: `docker network connect cadence-internal cloudflared`.
 3. In Cloudflare Zero Trust → your existing tunnel → Public Hostname,
-   add `api.cadence.gilla.fun` → `http://cadence-api:8080`.
+   add `cadence-api.gilla.fun` → `http://cadence-api:8080`.
 
 The default (two cloudflareds, one per concern) is safer for the first
 deploy because it doesn't touch your existing tunnel config. Consolidate
@@ -226,7 +226,7 @@ docker system df
 1. SSH to VPS, place the Firebase JSON.
 2. From your laptop: `docker buildx build ... --push .`
 3. In Portainer: create the stack with the env vars above, deploy.
-4. `curl https://api.cadence.gilla.fun/health` from your laptop.
+4. `curl https://cadence-api.gilla.fun/health` from your laptop.
 5. Point the simulator at production, sign in, run through onboarding, watch the row appear in `SELECT * FROM users;`.
 
 That's it. ~30 min the first time, ~3 min for every redeploy after.
