@@ -6,11 +6,17 @@ import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { HrZoneBars } from '@/components/charts';
 import { Screen, SectionLabel } from '@/components/layout';
+import { RunMap } from '@/components/maps';
 import { Card } from '@/components/primitives';
 import { endpoints } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queryKeys';
 import { apiClient } from '@/lib/client';
-import { readDailySummary, readHeartRateForWorkout, readWorkoutsRange } from '@/lib/health';
+import {
+  readDailySummary,
+  readHeartRateForWorkout,
+  readWorkoutRoute,
+  readWorkoutsRange,
+} from '@/lib/health';
 import { formatKm, formatPace } from '@/lib/running';
 import { colors } from '@/theme/tokens';
 
@@ -73,6 +79,14 @@ export default function RunDetailScreen() {
     staleTime: 60 * 60_000,
   });
 
+  // Workout-route polyline. Indoor runs and Strava-only runs return [].
+  const routeQuery = useQuery({
+    queryKey: ['health-route', run?.startsAt],
+    queryFn: () => (run ? readWorkoutRoute(run.startsAt) : Promise.resolve([])),
+    enabled: !!run,
+    staleTime: 60 * 60_000,
+  });
+
   return (
     <Screen scroll>
       <Pressable
@@ -100,6 +114,12 @@ export default function RunDetailScreen() {
             <Text className="text-h2 font-serif text-ink">{run.activityName}</Text>
           </View>
           <Text className="text-caption text-ink-3 mt-1">{formatDateLong(run.startsAt)}</Text>
+
+          {routeQuery.data && routeQuery.data.length >= 2 ? (
+            <View className="mt-6">
+              <RunMap points={routeQuery.data} />
+            </View>
+          ) : null}
 
           <View className="mt-6 flex-row">
             <StatBlock label="DISTANCE" value={run.distanceMeters !== undefined ? formatKm(run.distanceMeters) : '—'} />
