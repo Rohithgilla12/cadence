@@ -2,8 +2,14 @@
 # Multi-stage build: Alpine for compile, distroless for runtime.
 # Final image is ~38MB (api + worker binaries on distroless/static),
 # has no shell, runs as nonroot.
+#
+# Cross-architecture builds: --platform=$BUILDPLATFORM pins the build stage
+# to the BUILDER's native arch (amd64 on GitHub Actions), and $TARGETOS /
+# $TARGETARCH come from buildx (linux/arm64 for the production VPS). Go's
+# compiler cross-compiles natively — no QEMU emulation needed.
 
-FROM golang:1.25-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS build
+ARG TARGETOS TARGETARCH
 WORKDIR /src
 
 # Keep the dependency layer separate so changes to source don't bust the cache.
@@ -15,9 +21,9 @@ COPY . .
 # CGO_ENABLED=0 so the binary is fully static — required for distroless/static.
 # -trimpath strips local paths from the binary; -ldflags '-s -w' drops the
 # debug + symbol tables to shave a few MB.
-RUN CGO_ENABLED=0 GOOS=linux \
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags='-s -w' -o /out/api ./cmd/api
-RUN CGO_ENABLED=0 GOOS=linux \
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags='-s -w' -o /out/worker ./cmd/worker
 
 # Runtime image — distroless/static is ~2MB and contains no shell, no apt,

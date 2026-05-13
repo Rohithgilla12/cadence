@@ -3,13 +3,18 @@ name: api-ci
 # Continuous build + test + deploy for the Go API.
 #
 # - On every push to main that touches cadence-api/**: test, push :sha + :latest
-#   to ghcr.io/rohithgilla12/cadence-api, then SSH into the production VPS and
-#   pull the new image + restart the container.
+#   to ghcr.io/rohithgilla12/cadence-api (linux/arm64), then SSH into the
+#   production VPS and pull the new image + restart the container.
 # - On PRs to main that touch cadence-api/**: test only (no push, no deploy).
 #
-# Tests run integration tests against a real Postgres service container.
-# Migrations are embedded in the binary, so the test pool applies them itself
-# on first connect — no migrate CLI install needed in CI.
+# Speed notes:
+# - Cadence is a private repo, so we can't use GitHub's free arm64 hosted
+#   runners (public-repo-only). Instead the Dockerfile uses
+#   --platform=$BUILDPLATFORM on the build stage and Go cross-compiles
+#   natively for arm64 — no QEMU emulation, ~60s build time vs ~20min under
+#   emulation.
+# - Tests use embedded migrations (TestPool applies them on first connect),
+#   so no migrate CLI install needed.
 
 on:
   push:
@@ -49,9 +54,9 @@ jobs:
           --health-retries 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: cadence-api/go.mod
           cache-dependency-path: cadence-api/go.sum
@@ -78,7 +83,6 @@ jobs:
         env:
           PGPASSWORD: cadence
         run: |
-          # apt's psql client speaks to the postgres:17 service fine.
           sudo apt-get install -y postgresql-client
           psql -h localhost -U cadence -d postgres -c 'CREATE DATABASE cadence_test;'
 
@@ -105,12 +109,7 @@ jobs:
       tag: ${{ steps.meta.outputs.version }}
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
+      - uses: actions/checkout@v6
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
@@ -131,8 +130,8 @@ jobs:
             type=sha,format=short,prefix=
             type=raw,value=latest
 
-      - name: Build + push arm64
-        uses: docker/build-push-action@v6
+      - name: Build + push arm64 (Go cross-compile, no QEMU)
+        uses: docker/build-push-action@v7
         with:
           context: cadence-api
           file: cadence-api/Dockerfile
@@ -142,6 +141,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=cadence-api
           cache-to: type=gha,scope=cadence-api,mode=max
+          provenance: false
 
   deploy:
     name: deploy
@@ -168,7 +168,6 @@ jobs:
       - name: Trigger deploy
         # The SSH key on the VPS has a forced command — sshd ignores anything
         # the client requests and runs the pinned `docker compose pull + up`.
-        # We just need to open a connection.
         run: |
           ssh -i ~/.ssh/cadence-deploy \
               -o BatchMode=yes \
@@ -176,7 +175,6 @@ jobs:
 
       - name: Smoke test
         run: |
-          # Give the new container ~10s to settle after compose up.
           sleep 10
           for attempt in 1 2 3 4 5; do
             if curl --max-time 8 -fsS https://cadence-api.gilla.fun/health; then
