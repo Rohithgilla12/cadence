@@ -44,6 +44,27 @@ services:
     networks:
       - cadence-internal
 
+  # Background correlation engine. Same image as cadence-api but ENTRYPOINT
+  # is /app/worker which starts robfig/cron and stays up. Reads habit_logs +
+  # daily_summaries + check_ins, computes correlations, upserts insights.
+  # No inbound ports — pure DB consumer + producer.
+  cadence-worker:
+    image: ${CADENCE_IMAGE:-ghcr.io/rohithgilla12/cadence-api:latest}
+    container_name: cadence-worker
+    restart: unless-stopped
+    entrypoint: ["/app/worker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      CADENCE_ENV: production
+      DATABASE_URL: postgres://cadence:${POSTGRES_PASSWORD}@postgres:5432/cadence?sslmode=disable
+      # Override the default 3am UTC schedule via Portainer env if needed.
+      CRON_SPEC: ${CRON_SPEC:-0 3 * * *}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    networks:
+      - cadence-internal
+
   # Outbound-only tunnel — no inbound ports opened on the VPS. Token mode
   # means tunnel routing is configured in the Cloudflare Zero Trust dashboard
   # (api.cadence.gilla.fun -> http://cadence-api:8080), not in a config file.
