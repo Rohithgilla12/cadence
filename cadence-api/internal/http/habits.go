@@ -13,17 +13,17 @@ import (
 )
 
 type habitDTO struct {
-	ID           string             `json:"id"`
-	Name         string             `json:"name"`
-	Icon         string             `json:"icon"`
-	TimeOfDay    string             `json:"timeOfDay"`
-	Target       *habit.Target      `json:"target,omitempty"`
-	SourceLink   *habit.SourceLink  `json:"sourceLink,omitempty"`
-	TrackContext bool               `json:"trackContext"`
-	DoneToday    bool               `json:"doneToday"`
-	Streak       int                `json:"streak"`
-	AutoDetected bool               `json:"autoDetected"`
-	CreatedAt    time.Time          `json:"createdAt"`
+	ID           string            `json:"id"`
+	Name         string            `json:"name"`
+	Icon         string            `json:"icon"`
+	TimeOfDay    string            `json:"timeOfDay"`
+	Target       *habit.Target     `json:"target,omitempty"`
+	SourceLink   *habit.SourceLink `json:"sourceLink,omitempty"`
+	TrackContext bool              `json:"trackContext"`
+	DoneToday    bool              `json:"doneToday"`
+	Streak       int               `json:"streak"`
+	AutoDetected bool              `json:"autoDetected"`
+	CreatedAt    time.Time         `json:"createdAt"`
 }
 
 func toHabitDTO(h habit.Habit, doneToday bool, streak int, autoDetected bool) habitDTO {
@@ -87,12 +87,12 @@ func (h *habitsHandler) list(w http.ResponseWriter, r *http.Request) {
 }
 
 type createHabitRequest struct {
-	Name         string             `json:"name"`
-	Icon         string             `json:"icon"`
-	TimeOfDay    string             `json:"timeOfDay"`
-	Target       *habit.Target      `json:"target,omitempty"`
-	SourceLink   *habit.SourceLink  `json:"sourceLink,omitempty"`
-	TrackContext bool               `json:"trackContext"`
+	Name         string            `json:"name"`
+	Icon         string            `json:"icon"`
+	TimeOfDay    string            `json:"timeOfDay"`
+	Target       *habit.Target     `json:"target,omitempty"`
+	SourceLink   *habit.SourceLink `json:"sourceLink,omitempty"`
+	TrackContext bool              `json:"trackContext"`
 }
 
 func (h *habitsHandler) create(w http.ResponseWriter, r *http.Request) {
@@ -123,14 +123,14 @@ func (h *habitsHandler) create(w http.ResponseWriter, r *http.Request) {
 }
 
 type updateHabitRequest struct {
-	Name            *string            `json:"name,omitempty"`
-	Icon            *string            `json:"icon,omitempty"`
-	TimeOfDay       *string            `json:"timeOfDay,omitempty"`
-	Target          *habit.Target      `json:"target,omitempty"`
-	ClearTarget     bool               `json:"clearTarget,omitempty"`
-	SourceLink      *habit.SourceLink  `json:"sourceLink,omitempty"`
-	ClearSourceLink bool               `json:"clearSourceLink,omitempty"`
-	TrackContext    *bool              `json:"trackContext,omitempty"`
+	Name            *string           `json:"name,omitempty"`
+	Icon            *string           `json:"icon,omitempty"`
+	TimeOfDay       *string           `json:"timeOfDay,omitempty"`
+	Target          *habit.Target     `json:"target,omitempty"`
+	ClearTarget     bool              `json:"clearTarget,omitempty"`
+	SourceLink      *habit.SourceLink `json:"sourceLink,omitempty"`
+	ClearSourceLink bool              `json:"clearSourceLink,omitempty"`
+	TrackContext    *bool             `json:"trackContext,omitempty"`
 }
 
 func (h *habitsHandler) update(w http.ResponseWriter, r *http.Request) {

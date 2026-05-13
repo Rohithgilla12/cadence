@@ -27,12 +27,12 @@ type Target struct {
 //
 //   - Provider:  "apple_health" | "health_connect" | "strava"
 //   - Kind:      "workout" (HKWorkout / Strava activity) or "category" (sleep,
-//                mindful sessions, etc.)
+//     mindful sessions, etc.)
 //   - Activity:  workout slug ("run", "walk", "cycling", "yoga", "hike",
-//                "swim") OR a category identifier ("mindful", "sleep")
+//     "swim") OR a category identifier ("mindful", "sleep")
 //   - MinMinutes: ignore samples shorter than this
 //   - Window:    optional time-of-day filter, both strings in "HH:MM" 24h
-//                local time
+//     local time
 type SourceLink struct {
 	Provider   string      `json:"provider"`
 	Kind       string      `json:"kind"`
