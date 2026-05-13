@@ -22,9 +22,30 @@
 - Service-account JSON downloaded (Firebase Console → Project settings → Service accounts → Generate new private key).
 - Place it on the VPS at a path of your choosing — `/home/<user>/cadence-secrets/firebase-admin.json` is the convention. Permissions should be `600`. **This path is `FIREBASE_CREDENTIALS_HOST_PATH`.**
 
-### 4. GitHub Container Registry
-- A personal access token with `write:packages` scope (only needed for the first manual push; CI will take over later).
-- `docker login ghcr.io` on your local machine with that token.
+### 4. GitHub access (private repo + private GHCR image)
+
+The repository at `github.com/Rohithgilla12/cadence` is private, so its
+GHCR images inherit that visibility. Two PATs needed:
+
+**PAT A — for your laptop to push images:**
+- Classic or fine-grained token with `write:packages` + `read:packages` scopes
+- `docker login ghcr.io -u Rohithgilla12` with this token (one-time on your laptop)
+
+**PAT B — for Portainer to clone the repo + the VPS to pull the image:**
+- Fine-grained PAT at https://github.com/settings/personal-access-tokens
+- Name: `cadence-portainer-readonly`. Expiration: 90 days.
+- Repository access: only `Rohithgilla12/cadence`
+- Repository permissions: Contents Read-only, Metadata Read-only
+- (For Option A image pull below) Account permissions: leave at None — package read uses the same PAT because the package is associated with the repo.
+
+On the VPS, log into GHCR once with PAT B so Portainer's pulls succeed:
+
+```bash
+echo "<PAT B>" | docker login ghcr.io -u Rohithgilla12 --password-stdin
+```
+
+Docker stores credentials at `~/.docker/config.json` and Portainer's
+docker-compose pulls reuse them automatically.
 
 ---
 
@@ -70,9 +91,13 @@ In Portainer → Stacks → **Add stack**:
 
 - **Name:** `cadence`
 - **Build method:** *Git Repository*
-  - Repository URL: this repo
-  - Reference: `refs/heads/main`
-  - Compose path: `cadence-api/deploy/docker-compose.prod.yml`
+  - **Repository URL:** `https://github.com/Rohithgilla12/cadence.git`
+  - **Repository reference:** `refs/heads/main`
+  - **Repository authentication:** enabled
+    - Username: `Rohithgilla12`
+    - Personal access token: paste PAT B (the fine-grained one)
+  - **Compose path:** `cadence-api/deploy/docker-compose.prod.yml`
+  - **Automatic updates:** optional — enable polling at 5 min to auto-redeploy on every push to `main`
 - **Environment variables** (copy values into the Portainer UI form, do NOT commit them):
 
   | Variable | Value |
