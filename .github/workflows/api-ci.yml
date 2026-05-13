@@ -8,11 +8,9 @@ name: api-ci
 # - On PRs to main that touch cadence-api/**: test only (no push, no deploy).
 #
 # Speed notes:
-# - Cadence is a private repo, so we can't use GitHub's free arm64 hosted
-#   runners (public-repo-only). Instead the Dockerfile uses
-#   --platform=$BUILDPLATFORM on the build stage and Go cross-compiles
-#   natively for arm64 — no QEMU emulation, ~60s build time vs ~20min under
-#   emulation.
+# - Build job runs on `ubuntu-24.04-arm` — GitHub's free arm64 hosted runner
+#   (public-repo only, which we are). Native arm64 = no QEMU, no cross-compile
+#   gymnastics; the Dockerfile's --platform=$BUILDPLATFORM gracefully no-ops.
 # - Tests use embedded migrations (TestPool applies them on first connect),
 #   so no migrate CLI install needed.
 
@@ -101,7 +99,7 @@ jobs:
     name: build & push
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm  # native arm64; matches the production VPS
     permissions:
       contents: read
       packages: write
@@ -130,7 +128,7 @@ jobs:
             type=sha,format=short,prefix=
             type=raw,value=latest
 
-      - name: Build + push arm64 (Go cross-compile, no QEMU)
+      - name: Build + push (native arm64)
         uses: docker/build-push-action@v7
         with:
           context: cadence-api
