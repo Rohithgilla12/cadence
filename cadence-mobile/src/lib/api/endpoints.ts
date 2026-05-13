@@ -2,6 +2,9 @@ import type { ApiClient } from './client';
 import type {
   ApiCheckIn,
   ApiHabit,
+  ApiHabitSourceLink,
+  ApiTarget,
+  ApiTimeOfDay,
   GetCheckInResponse,
   ListHabitsResponse,
   Me,
@@ -11,10 +14,26 @@ import type {
 interface CreateHabitInput {
   name: string;
   icon: string;
-  timeOfDay?: ApiHabit['timeOfDay'];
-  target?: ApiHabit['target'];
+  timeOfDay?: ApiTimeOfDay;
+  target?: ApiTarget;
+  sourceLink?: ApiHabitSourceLink;
   trackContext?: boolean;
 }
+
+// Mirrors the Go updateHabitRequest. Omitted fields are left untouched;
+// clearTarget / clearSourceLink explicitly set the column to NULL.
+interface UpdateHabitInput {
+  name?: string;
+  icon?: string;
+  timeOfDay?: ApiTimeOfDay;
+  target?: ApiTarget;
+  clearTarget?: boolean;
+  sourceLink?: ApiHabitSourceLink;
+  clearSourceLink?: boolean;
+  trackContext?: boolean;
+}
+
+export type ToggleSource = 'manual' | 'apple_health' | 'health_connect' | 'strava';
 
 export const endpoints = {
   getMe: (client: ApiClient) => () => client.request<Me>('/v1/me'),
@@ -36,10 +55,19 @@ export const endpoints = {
       })
       .then((r) => r.habit),
 
-  toggleHabit: (client: ApiClient) => (habitId: string) =>
+  updateHabit: (client: ApiClient) => (habitId: string, input: UpdateHabitInput) =>
+    client
+      .request<{ habit: ApiHabit }>(`/v1/habits/${habitId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      })
+      .then((r) => r.habit),
+
+  toggleHabit: (client: ApiClient) => (habitId: string, source: ToggleSource = 'manual') =>
     client
       .request<{ habit: ApiHabit }>(`/v1/habits/${habitId}/toggle`, {
         method: 'POST',
+        body: source === 'manual' ? undefined : JSON.stringify({ source }),
       })
       .then((r) => r.habit),
 

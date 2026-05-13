@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, View, Text } from 'react-native';
-import { IconCheck } from '@tabler/icons-react-native';
+import { IconCheck, IconHeartbeat } from '@tabler/icons-react-native';
 import { StreakPill } from './StreakPill';
 import { iconFor } from '@/lib/mockData';
 import { colors } from '@/theme/tokens';
@@ -31,14 +31,7 @@ export function HabitRow({ habit, onToggle }: HabitRowProps) {
 
   const HabitIcon = iconFor[habit.icon];
 
-  const metaParts: string[] = [];
-  if (habit.target) {
-    metaParts.push(`${habit.target.value} ${habit.target.unit}`);
-  }
-  if (habit.autoDetected) {
-    metaParts.push('auto-detected');
-  }
-  const metaText = metaParts.join(' · ');
+  const targetText = habit.target ? `${habit.target.value} ${habit.target.unit}` : '';
 
   return (
     <Pressable
@@ -69,8 +62,14 @@ export function HabitRow({ habit, onToggle }: HabitRowProps) {
           >
             {habit.name}
           </Text>
-          {metaText.length > 0 && (
-            <Text className="text-caption text-ink-3 mt-0.5">{metaText}</Text>
+          {targetText.length > 0 && (
+            <Text className="text-caption text-ink-3 mt-0.5">{targetText}</Text>
+          )}
+          {habit.autoDetected && (
+            <View className="flex-row items-center gap-1 mt-0.5">
+              <IconHeartbeat size={11} color={colors.moss} strokeWidth={1.5} />
+              <Text className="text-caption text-moss">auto-detected from Apple Health</Text>
+            </View>
           )}
         </View>
       </View>

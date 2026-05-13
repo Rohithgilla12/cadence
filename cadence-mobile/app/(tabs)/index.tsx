@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
 import { Button } from '@/components/primitives';
@@ -11,7 +11,7 @@ import { WeekStrip, CheckInRow, RhythmStatsCard } from '@/components/today';
 import { endpoints } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queryKeys';
 import { apiClient } from '@/lib/client';
-import { getStatus, readDailySummary } from '@/lib/health';
+import { detectFromSummary, getStatus, readDailySummary } from '@/lib/health';
 import { colors } from '@/theme/tokens';
 import { mockInsight, mockWeek } from '@/lib/mockData';
 import type { ApiHabit } from '@/lib/api/types';
@@ -44,6 +44,11 @@ function toHabit(api: ApiHabit): Habit {
     autoDetected: api.autoDetected,
   };
 }
+
+// Module-scoped so it survives StrictMode double-mounts and remounts in the
+// same session. Cleared on full app reload (which is fine — the server-side
+// log is the source of truth).
+const detectionFiredFor = new Set<string>();
 
 export default function TodayScreen() {
   const router = useRouter();
@@ -103,6 +108,43 @@ export default function TodayScreen() {
 
   const habits = useMemo(() => habitsQuery.data?.map(toHabit) ?? [], [habitsQuery.data]);
   const doneCount = useMemo(() => habits.filter((h) => h.doneToday).length, [habits]);
+
+  // PRD §9 — Auto-detection. When Apple Health has fresh data and a habit has
+  // a sourceLink rule that matches today's workouts, fire a server toggle with
+  // source=apple_health so the habit pre-checks. The backend's toggle handler
+  // enforces "never auto-uncheck a manually-logged habit", and we gate each
+  // habit-id+today combination with `detectionFiredFor` so a re-render doesn't
+  // re-trigger it.
+  const todayKeyRef = useRef(todayIso);
+  if (todayKeyRef.current !== todayIso) {
+    todayKeyRef.current = todayIso;
+    detectionFiredFor.clear();
+  }
+  const autodetectMutation = useMutation({
+    mutationFn: (habitId: string) =>
+      endpoints.toggleHabit(apiClient)(habitId, 'apple_health'),
+    onSuccess: (updated, habitId) => {
+      queryClient.setQueryData<ApiHabit[]>(queryKeys.habits, (current) =>
+        current?.map((h) => (h.id === habitId ? updated : h)),
+      );
+    },
+  });
+  useEffect(() => {
+    const summary = dailySummaryQuery.data;
+    if (!summary) return;
+    const apiHabits = habitsQuery.data;
+    if (!apiHabits) return;
+    for (const habit of apiHabits) {
+      if (!habit.sourceLink) continue;
+      if (habit.doneToday) continue;
+      const dedupeKey = `${habit.id}:${todayIso}`;
+      if (detectionFiredFor.has(dedupeKey)) continue;
+      const { matched } = detectFromSummary(habit.sourceLink, summary);
+      if (!matched) continue;
+      detectionFiredFor.add(dedupeKey);
+      autodetectMutation.mutate(habit.id);
+    }
+  }, [dailySummaryQuery.data, habitsQuery.data, todayIso, autodetectMutation]);
 
   return (
     <Screen scroll>

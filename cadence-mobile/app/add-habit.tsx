@@ -13,12 +13,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { IconPicker, NameField, TimeOfDayPicker } from '@/components/habit';
+import { IconPicker, NameField, SourceLinkPicker, TimeOfDayPicker } from '@/components/habit';
 import { SectionLabel } from '@/components/layout';
 import { Button } from '@/components/primitives';
 import { endpoints } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queryKeys';
-import type { ApiHabit, ApiTimeOfDay } from '@/lib/api/types';
+import type { ApiHabit, ApiHabitSourceLink, ApiTimeOfDay } from '@/lib/api/types';
 import { apiClient } from '@/lib/client';
 import { colors, screenPaddingX } from '@/theme/tokens';
 
@@ -30,6 +30,7 @@ export default function AddHabitScreen() {
   const [name, setName] = useState('');
   const [icon, setIcon] = useState<string>('sparkles');
   const [timeOfDay, setTimeOfDay] = useState<ApiTimeOfDay>('anytime');
+  const [sourceLink, setSourceLink] = useState<ApiHabitSourceLink | null>(null);
 
   const createMutation = useMutation({
     mutationFn: () =>
@@ -37,6 +38,7 @@ export default function AddHabitScreen() {
         name: name.trim(),
         icon,
         timeOfDay,
+        sourceLink: sourceLink ?? undefined,
         trackContext: true,
       }),
     onSuccess: (created) => {
@@ -100,6 +102,12 @@ export default function AddHabitScreen() {
 
           <SectionLabel label="WHEN" />
           <TimeOfDayPicker value={timeOfDay} onChange={setTimeOfDay} />
+
+          <SectionLabel label="TRACK VIA" />
+          <SourceLinkPicker value={sourceLink} onChange={setSourceLink} />
+          <Text className="text-caption text-ink-3 mt-2">
+            With Apple Health, matching workouts pre-check this habit. You can always untick.
+          </Text>
         </ScrollView>
 
         <View

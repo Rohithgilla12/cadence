@@ -31,12 +31,34 @@ export interface ApiTarget {
   unit: string;
 }
 
+// Per PRD §9 — rule for auto-detecting habit completion from a health source.
+// Kept symmetric with the Go cadence-api SourceLink type so the JSON shape
+// matches exactly in both directions.
+export type HabitSourceProvider = 'apple_health' | 'health_connect' | 'strava';
+export type HabitSourceKind = 'workout' | 'category';
+
+export interface HabitTimeWindow {
+  start: string; // "HH:MM" 24h local
+  end: string;
+}
+
+export interface ApiHabitSourceLink {
+  provider: HabitSourceProvider;
+  kind: HabitSourceKind;
+  // For 'workout': activity slug (run, walk, cycling, yoga, hike, swim).
+  // For 'category': category identifier (mindful, sleep).
+  activity: string;
+  minMinutes?: number;
+  window?: HabitTimeWindow;
+}
+
 export interface ApiHabit {
   id: string;
   name: string;
   icon: string;
   timeOfDay: ApiTimeOfDay;
   target?: ApiTarget;
+  sourceLink?: ApiHabitSourceLink;
   trackContext: boolean;
   doneToday: boolean;
   streak: number;
