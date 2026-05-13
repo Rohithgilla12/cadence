@@ -8,6 +8,7 @@ import (
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/checkin"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/dailysum"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/habit"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/insight"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/user"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -23,6 +24,7 @@ type Deps struct {
 	HabitLogs      *habit.LogRepository
 	CheckIns       *checkin.Repository
 	DailySummaries *dailysum.Repository
+	InsightEngine  *insight.Engine
 }
 
 func NewRouter(deps Deps) http.Handler {
@@ -53,6 +55,11 @@ func NewRouter(deps Deps) http.Handler {
 
 		dailySums := newDailySumHandler(deps.DailySummaries)
 		r.Put("/daily-summaries/{date}", dailySums.put)
+
+		if deps.InsightEngine != nil {
+			insights := newInsightsHandler(deps.InsightEngine)
+			r.Post("/insights/compute", insights.compute)
+		}
 	})
 
 	return r
