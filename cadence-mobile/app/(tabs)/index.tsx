@@ -19,9 +19,9 @@ import {
   todayWeekdayIndex as currentWeekdayIndex,
 } from '@/lib/running';
 import { colors } from '@/theme/tokens';
-import { mockInsight, mockWeek } from '@/lib/mockData';
+import { mockWeek } from '@/lib/mockData';
 import type { ApiHabit } from '@/lib/api/types';
-import type { Habit } from '@/types';
+import type { Habit, Insight } from '@/types';
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -104,6 +104,18 @@ export default function TodayScreen() {
     queryKey: queryKeys.checkIn(todayIso),
     queryFn: () => endpoints.getCheckIn(apiClient)(todayIso),
   });
+
+  // Today's rotated insight per PRD §8. Server stamps shown_at on read, so
+  // the next call advances rotation. When data isn't strong enough yet the
+  // server returns null and we show 'Cadence is listening' — never fabricate.
+  const insightQuery = useQuery({
+    queryKey: queryKeys.insightToday,
+    queryFn: endpoints.getInsightToday(apiClient),
+    staleTime: 60 * 60_000,
+  });
+  const insight: Insight = insightQuery.data
+    ? { kind: 'pattern', renderedText: insightQuery.data.renderedText }
+    : { kind: 'listening' };
 
   const healthStatusQuery = useQuery({
     queryKey: ['health-status'],
@@ -237,7 +249,7 @@ export default function TodayScreen() {
       </View>
 
       <View className="mt-6">
-        <InsightCard insight={mockInsight} />
+        <InsightCard insight={insight} />
       </View>
 
       {hasAnyRuns ? (

@@ -1,34 +1,90 @@
+import { IconSparkles } from '@tabler/icons-react-native';
 import { useQuery } from '@tanstack/react-query';
-import { Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 
 import { InsightCard } from '@/components/insight';
 import { Screen, SectionLabel } from '@/components/layout';
+import { Card } from '@/components/primitives';
 import { endpoints } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queryKeys';
 import { apiClient } from '@/lib/client';
+import { colors } from '@/theme/tokens';
+import type { ApiInsight } from '@/lib/api/types';
 import type { Insight } from '@/types';
 
-// Reflect is the wedge surface — once the correlation engine ships, this is
-// where context-aware insights live (PRD §7, §8). Until then it's an honest
-// listening state per PRD §20. We do NOT fabricate insights to fill space.
+// Reflect is the wedge surface (PRD §7, §8). When the engine has found
+// patterns it shows them all here, ranked by effect size. Until then it's
+// an honest listening state — we never fabricate insights to fill space.
 const LISTENING_INSIGHT: Insight = { kind: 'listening' };
 
 export default function ReflectScreen() {
-  // Read the user's habits so we can tailor the listening copy. If they have
-  // habits, lean into the patience message; if they're brand new, explain the
-  // shape of what's coming. No fake patterns either way.
   const habitsQuery = useQuery({
     queryKey: queryKeys.habits,
     queryFn: endpoints.listHabits(apiClient),
   });
+  const insightsQuery = useQuery({
+    queryKey: queryKeys.insights,
+    queryFn: endpoints.listInsights(apiClient),
+    staleTime: 60 * 60_000,
+  });
 
   const habitCount = habitsQuery.data?.length ?? 0;
+  const insights = insightsQuery.data ?? [];
+  const hasPatterns = insights.length > 0;
 
   return (
     <Screen scroll>
       <Text className="text-body-sm text-ink-3">Weekly mirror</Text>
       <Text className="text-h1 font-serif text-ink mt-0.5">Reflect</Text>
 
+      {insightsQuery.isLoading ? (
+        <View className="mt-8 items-center">
+          <ActivityIndicator color={colors.moss} />
+        </View>
+      ) : hasPatterns ? (
+        <PatternsList insights={insights} />
+      ) : (
+        <ListeningSection habitCount={habitCount} />
+      )}
+    </Screen>
+  );
+}
+
+function PatternsList({ insights }: { insights: ApiInsight[] }) {
+  return (
+    <View className="mt-6 gap-3">
+      <SectionLabel label={`PATTERNS · ${insights.length}`} className="!mt-0 !mb-3" />
+      {insights.map((insight) => (
+        <PatternRow key={insight.id} insight={insight} />
+      ))}
+      <Text className="text-caption text-ink-3 mt-3 font-serif italic">
+        Observational, not causal. You do X more often when Y — not "Y makes you do X."
+      </Text>
+    </View>
+  );
+}
+
+function PatternRow({ insight }: { insight: ApiInsight }) {
+  const isStrong = insight.effectSize >= 0.35;
+  return (
+    <Card padding="md">
+      <View className="flex-row items-center justify-between mb-2">
+        <View className="flex-row items-center gap-1.5">
+          <IconSparkles size={12} color={colors.moss} strokeWidth={1.5} />
+          <Text className="text-eyebrow text-moss uppercase">
+            {isStrong ? 'STRONG PATTERN' : 'PATTERN'}
+          </Text>
+        </View>
+        <Text className="text-micro text-ink-3">{insight.sampleSize} days</Text>
+      </View>
+      <Text className="text-body text-ink leading-relaxed">{insight.renderedText}</Text>
+    </Card>
+  );
+}
+
+function ListeningSection({ habitCount }: { habitCount: number }) {
+  return (
+    <>
       <View className="mt-6">
         <InsightCard insight={LISTENING_INSIGHT} />
       </View>
@@ -51,13 +107,11 @@ export default function ReflectScreen() {
       <View className="bg-paper-2 rounded-2xl p-4">
         <Text className="text-eyebrow text-ink-3 uppercase">PRACTICES</Text>
         <Text className="text-h2 font-serif text-ink mt-1">
-          {habitsQuery.isLoading
-            ? '—'
-            : habitCount === 0
-              ? 'None yet'
-              : habitCount === 1
-                ? '1 in your rhythm'
-                : `${habitCount} in your rhythm`}
+          {habitCount === 0
+            ? 'None yet'
+            : habitCount === 1
+              ? '1 in your rhythm'
+              : `${habitCount} in your rhythm`}
         </Text>
         {habitCount > 0 ? (
           <Text className="text-body-sm text-ink-2 mt-2">
@@ -70,6 +124,6 @@ export default function ReflectScreen() {
           </Text>
         )}
       </View>
-    </Screen>
+    </>
   );
 }

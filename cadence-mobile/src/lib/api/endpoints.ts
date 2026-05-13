@@ -3,6 +3,7 @@ import type {
   ApiCheckIn,
   ApiHabit,
   ApiHabitSourceLink,
+  ApiInsight,
   ApiTarget,
   ApiTimeOfDay,
   GetCheckInResponse,
@@ -92,6 +93,20 @@ export const endpoints = {
       method: 'PUT',
       body: JSON.stringify(body),
     }),
+
+  // Returns the rotated insight for Today (or null when none eligible — show
+  // 'Cadence is listening' per PRD §8). Server stamps shown_at so calling
+  // this advances the rotation.
+  getInsightToday: (client: ApiClient) => () =>
+    client.request<{ insight: ApiInsight | null }>('/v1/insights/today').then((r) => r.insight),
+
+  // All above-threshold insights for the Reflect grid, ordered by effect
+  // size descending. Doesn't advance the rotation.
+  listInsights: (client: ApiClient) => () =>
+    client.request<{ insights: ApiInsight[] }>('/v1/insights').then((r) => r.insights),
+
+  computeInsights: (client: ApiClient) => () =>
+    client.request<{ surfaced: number }>('/v1/insights/compute', { method: 'POST' }),
 };
 
 // Mirrors the Go putDailySumRequest. All fields optional — client uploads

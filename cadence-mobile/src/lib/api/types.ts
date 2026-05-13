@@ -80,3 +80,20 @@ export interface ApiCheckIn {
 export interface GetCheckInResponse {
   checkIn: ApiCheckIn | null;
 }
+
+// Mirrors Go insightDTO. Wraps the engine's rendered output so the UI can
+// render localized copy from params later if we want, but for v1 we just
+// display renderedText directly.
+export interface ApiInsight {
+  id: string;
+  habitId?: string;
+  patternType: string;
+  effectSize: number;
+  pValue: number;
+  sampleSize: number;
+  templateId: string;
+  renderedText: string;
+  computedAt: string;
+  shownAt?: string;
+  params?: Record<string, unknown>;
+}
