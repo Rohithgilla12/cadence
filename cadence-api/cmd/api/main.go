@@ -14,6 +14,7 @@ import (
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/auth"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/checkin"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/config"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/dailysum"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/db"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/habit"
 	cadencehttp "github.com/Rohithgilla12/cadence/cadence-api/internal/http"
@@ -55,17 +56,19 @@ func main() {
 	habitRepo := habit.NewRepository(pool)
 	habitLogRepo := habit.NewLogRepository(pool)
 	checkInRepo := checkin.NewRepository(pool)
+	dailySumRepo := dailysum.NewRepository(pool)
 
 	server := &http.Server{
 		Addr: fmt.Sprintf(":%d", cfg.Port),
 		Handler: cadencehttp.NewRouter(cadencehttp.Deps{
-			Pool:      pool,
-			Verifier:  verifier,
-			Resolver:  resolver,
-			Users:     repo,
-			Habits:    habitRepo,
-			HabitLogs: habitLogRepo,
-			CheckIns:  checkInRepo,
+			Pool:           pool,
+			Verifier:       verifier,
+			Resolver:       resolver,
+			Users:          repo,
+			Habits:         habitRepo,
+			HabitLogs:      habitLogRepo,
+			CheckIns:       checkInRepo,
+			DailySummaries: dailySumRepo,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}

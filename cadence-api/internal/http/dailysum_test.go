@@ -1,0 +1,134 @@
+//go:build integration
+
+package http_test
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/auth"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/checkin"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/dailysum"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/db"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/habit"
+	cadencehttp "github.com/Rohithgilla12/cadence/cadence-api/internal/http"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/user"
+)
+
+func newDailySumTestServer(t *testing.T) (*httptest.Server, *user.User) {
+	t.Helper()
+	pool := db.TestPool(t)
+	db.Truncate(t, pool, "daily_summaries", "users")
+	userRepo := user.NewRepository(pool)
+	verifier := stubVerifier{id: auth.Identity{FirebaseUID: "uid-ds", Email: "ds@x.com", Name: "DS"}}
+	deps := cadencehttp.Deps{
+		Pool:           pool,
+		Verifier:       verifier,
+		Resolver:       auth.UserResolverFromRepository(userRepo),
+		Habits:         habit.NewRepository(pool),
+		HabitLogs:      habit.NewLogRepository(pool),
+		CheckIns:       checkin.NewRepository(pool),
+		DailySummaries: dailysum.NewRepository(pool),
+	}
+	srv := httptest.NewServer(cadencehttp.NewRouter(deps))
+	t.Cleanup(srv.Close)
+	u, _ := userRepo.GetOrCreateByFirebaseUID(context.Background(), user.NewUserInput{FirebaseUID: "uid-ds", Email: "ds@x.com", DisplayName: "DS"})
+	return srv, &u
+}
+
+func TestDailySummaries_UpsertRoundTrip(t *testing.T) {
+	srv, _ := newDailySumTestServer(t)
+	status, body := doReq(t, srv, http.MethodPut, "/v1/daily-summaries/2026-05-13", map[string]any{
+		"sleepHours":       7.8,
+		"sleepDeepMinutes": 72,
+		"sleepRemMinutes":  95,
+		"sleepCoreMinutes": 245,
+		"steps":            8421,
+		"distanceMeters":   6300,
+		"activeEnergyKcal": 412,
+		"restingHeartRate": 55,
+		"hrvMs":            48,
+	})
+	if status != http.StatusOK {
+		t.Fatalf("status %d body %s", status, body)
+	}
+	var resp struct {
+		DailySummary struct {
+			Date             string  `json:"date"`
+			SleepHours       float64 `json:"sleepHours"`
+			Steps            int     `json:"steps"`
+			HrvMs            int     `json:"hrvMs"`
+			RestingHeartRate int     `json:"restingHeartRate"`
+		} `json:"dailySummary"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.DailySummary.Date != "2026-05-13" || resp.DailySummary.SleepHours != 7.8 ||
+		resp.DailySummary.HrvMs != 48 || resp.DailySummary.RestingHeartRate != 55 {
+		t.Fatalf("round trip mismatch: %+v", resp.DailySummary)
+	}
+}
+
+func TestDailySummaries_PartialUpdatePreservesEarlierFields(t *testing.T) {
+	srv, _ := newDailySumTestServer(t)
+
+	// First write: only sleep numbers (e.g. client uploaded in the morning
+	// before HRV computed).
+	status, _ := doReq(t, srv, http.MethodPut, "/v1/daily-summaries/2026-05-13", map[string]any{
+		"sleepHours":       7.8,
+		"sleepDeepMinutes": 72,
+	})
+	if status != http.StatusOK {
+		t.Fatalf("first put status %d", status)
+	}
+
+	// Second write: only HRV. Sleep fields must be preserved.
+	status, body := doReq(t, srv, http.MethodPut, "/v1/daily-summaries/2026-05-13", map[string]any{
+		"hrvMs": 48,
+	})
+	if status != http.StatusOK {
+		t.Fatalf("second put status %d", status)
+	}
+	var resp struct {
+		DailySummary struct {
+			SleepHours       *float64 `json:"sleepHours,omitempty"`
+			SleepDeepMinutes *int     `json:"sleepDeepMinutes,omitempty"`
+			HrvMs            *int     `json:"hrvMs,omitempty"`
+		} `json:"dailySummary"`
+	}
+	_ = json.Unmarshal(body, &resp)
+	if resp.DailySummary.SleepHours == nil || *resp.DailySummary.SleepHours != 7.8 {
+		t.Fatalf("sleepHours not preserved: %+v", resp.DailySummary)
+	}
+	if resp.DailySummary.SleepDeepMinutes == nil || *resp.DailySummary.SleepDeepMinutes != 72 {
+		t.Fatalf("sleepDeepMinutes not preserved: %+v", resp.DailySummary)
+	}
+	if resp.DailySummary.HrvMs == nil || *resp.DailySummary.HrvMs != 48 {
+		t.Fatalf("hrvMs not stored: %+v", resp.DailySummary)
+	}
+}
+
+func TestDailySummaries_RejectsImpossibleValues(t *testing.T) {
+	srv, _ := newDailySumTestServer(t)
+
+	cases := []struct {
+		name string
+		body map[string]any
+	}{
+		{"sleep > 24h", map[string]any{"sleepHours": 30.0}},
+		{"hrv too high", map[string]any{"hrvMs": 1000}},
+		{"rhr too low", map[string]any{"restingHeartRate": 10}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			status, _ := doReq(t, srv, http.MethodPut, "/v1/daily-summaries/2026-05-13", tc.body)
+			if status != http.StatusBadRequest {
+				t.Fatalf("expected 400, got %d", status)
+			}
+		})
+	}
+}

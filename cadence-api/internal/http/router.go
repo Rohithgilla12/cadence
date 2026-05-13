@@ -6,6 +6,7 @@ import (
 
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/auth"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/checkin"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/dailysum"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/habit"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/user"
 	"github.com/go-chi/chi/v5"
@@ -14,13 +15,14 @@ import (
 )
 
 type Deps struct {
-	Pool      *pgxpool.Pool
-	Verifier  auth.Verifier
-	Resolver  auth.UserResolver
-	Users     *user.Repository
-	Habits    *habit.Repository
-	HabitLogs *habit.LogRepository
-	CheckIns  *checkin.Repository
+	Pool           *pgxpool.Pool
+	Verifier       auth.Verifier
+	Resolver       auth.UserResolver
+	Users          *user.Repository
+	Habits         *habit.Repository
+	HabitLogs      *habit.LogRepository
+	CheckIns       *checkin.Repository
+	DailySummaries *dailysum.Repository
 }
 
 func NewRouter(deps Deps) http.Handler {
@@ -48,6 +50,9 @@ func NewRouter(deps Deps) http.Handler {
 		checkIns := newCheckInHandler(deps.CheckIns)
 		r.Get("/check-ins/{date}", checkIns.get)
 		r.Put("/check-ins/{date}", checkIns.put)
+
+		dailySums := newDailySumHandler(deps.DailySummaries)
+		r.Put("/daily-summaries/{date}", dailySums.put)
 	})
 
 	return r
