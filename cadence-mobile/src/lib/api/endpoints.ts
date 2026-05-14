@@ -54,6 +54,9 @@ export const endpoints = {
       body: JSON.stringify(input),
     }),
 
+  deleteMe: (client: ApiClient) => () =>
+    client.request<void>('/v1/me', { method: 'DELETE' }),
+
   listHabits: (client: ApiClient) => () =>
     client.request<ListHabitsResponse>('/v1/habits').then((r) => r.habits),
 

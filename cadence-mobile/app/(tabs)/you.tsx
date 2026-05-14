@@ -1,4 +1,13 @@
-import { IconChevronRight, IconHeartbeat, IconLogout } from '@tabler/icons-react-native';
+import {
+  IconChevronRight,
+  IconFileText,
+  IconHeartbeat,
+  IconLifebuoy,
+  IconLogout,
+  IconMoon,
+  IconShield,
+  IconTrash,
+} from '@tabler/icons-react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -19,7 +28,17 @@ import { queryKeys } from '@/lib/api/queryKeys';
 import { useAuth } from '@/lib/auth';
 import { apiClient } from '@/lib/client';
 import { getStatus } from '@/lib/health';
-import { DEFAULT_MAX_HR, clearMaxHr, getMaxHr, setMaxHr } from '@/lib/settings';
+import {
+  DEFAULT_MAX_HR,
+  DEFAULT_QUIET_HOURS,
+  clearMaxHr,
+  clearQuietHours,
+  getMaxHr,
+  getQuietHours,
+  setMaxHr,
+  setQuietHours,
+  type QuietHours,
+} from '@/lib/settings';
 import { colors } from '@/theme/tokens';
 import type { HealthAuthStatus } from '@/lib/health';
 
@@ -36,6 +55,41 @@ export default function YouScreen() {
     queryKey: ['settings-max-hr'],
     queryFn: getMaxHr,
   });
+  const quietHoursQuery = useQuery({
+    queryKey: ['settings-quiet-hours'],
+    queryFn: getQuietHours,
+  });
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: endpoints.deleteMe(apiClient),
+    onSuccess: async () => {
+      // Server is gone — sign out the client so the next launch doesn't try
+      // to use a stale Firebase token against a deleted user row.
+      try {
+        await signOut();
+      } catch {
+        // signOut failure here doesn't matter — server-side row is already gone.
+      }
+    },
+    onError: (err) => {
+      Alert.alert('Could not delete', err instanceof Error ? err.message : 'Unknown error');
+    },
+  });
+
+  function confirmDelete() {
+    Alert.alert(
+      'Delete your account?',
+      'This wipes your habits, logs, health summaries, check-ins, circle memberships, and reactions. There is no undo.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete everything',
+          style: 'destructive',
+          onPress: () => deleteAccountMutation.mutate(),
+        },
+      ],
+    );
+  }
 
   const [healthStatus, setHealthStatus] = useState<HealthAuthStatus>('unknown');
   useFocusEffect(
@@ -106,12 +160,39 @@ export default function YouScreen() {
       <HealthConnectCard status={healthStatus} />
 
       <SectionLabel label="PERSONAL" />
-      <MaxHrRow
-        savedValue={maxHrQuery.data ?? null}
-        onSaved={() => {
-          queryClient.invalidateQueries({ queryKey: ['settings-max-hr'] });
-        }}
-      />
+      <View className="gap-2">
+        <MaxHrRow
+          savedValue={maxHrQuery.data ?? null}
+          onSaved={() => {
+            queryClient.invalidateQueries({ queryKey: ['settings-max-hr'] });
+          }}
+        />
+        <QuietHoursRow
+          savedValue={quietHoursQuery.data ?? null}
+          onSaved={() => {
+            queryClient.invalidateQueries({ queryKey: ['settings-quiet-hours'] });
+          }}
+        />
+      </View>
+
+      <SectionLabel label="LEGAL" />
+      <View className="gap-2">
+        <LegalRow
+          label="Privacy"
+          icon={<IconShield size={18} color={colors.ink2} strokeWidth={1.5} />}
+          onPress={() => router.push('/legal/privacy')}
+        />
+        <LegalRow
+          label="Terms"
+          icon={<IconFileText size={18} color={colors.ink2} strokeWidth={1.5} />}
+          onPress={() => router.push('/legal/terms')}
+        />
+        <LegalRow
+          label="Support"
+          icon={<IconLifebuoy size={18} color={colors.ink2} strokeWidth={1.5} />}
+          onPress={() => router.push('/legal/support')}
+        />
+      </View>
 
       <SectionLabel label="ACCOUNT" />
       <Pressable
@@ -123,9 +204,178 @@ export default function YouScreen() {
         <IconLogout size={18} color={colors.ink2} strokeWidth={1.5} />
         <Text className="text-body text-ink-2">Sign out</Text>
       </Pressable>
+      <Pressable
+        onPress={confirmDelete}
+        accessibilityRole="button"
+        accessibilityLabel="Delete account"
+        disabled={deleteAccountMutation.isPending}
+        className="flex-row items-center gap-3 py-4 border-t border-hairline"
+      >
+        <IconTrash size={18} color={colors.clayText} strokeWidth={1.5} />
+        <Text className="text-body" style={{ color: colors.clayText }}>
+          {deleteAccountMutation.isPending ? 'Deleting…' : 'Delete account'}
+        </Text>
+      </Pressable>
 
       <Text className="text-micro text-ink-3 mt-8 text-center">Cadence · v0.1.0</Text>
     </Screen>
+  );
+}
+
+function LegalRow({
+  label,
+  icon,
+  onPress,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      className="flex-row items-center gap-3 bg-card border border-hairline rounded-xl p-3 active:opacity-90"
+    >
+      {icon}
+      <Text className="flex-1 text-body text-ink">{label}</Text>
+      <IconChevronRight size={16} color={colors.ink3} strokeWidth={1.5} />
+    </Pressable>
+  );
+}
+
+interface QuietHoursRowProps {
+  savedValue: QuietHours | null;
+  onSaved: () => void;
+}
+
+function QuietHoursRow({ savedValue, onSaved }: QuietHoursRowProps) {
+  const [editing, setEditing] = useState(false);
+  const initial = savedValue ?? DEFAULT_QUIET_HOURS;
+  const [start, setStart] = useState(initial.start);
+  const [end, setEnd] = useState(initial.end);
+
+  const saveMutation = useMutation({
+    mutationFn: () => setQuietHours({ start, end }),
+    onSuccess: () => {
+      setEditing(false);
+      onSaved();
+    },
+    onError: (err) => {
+      Alert.alert('Could not save', err instanceof Error ? err.message : 'Unknown error');
+    },
+  });
+  const resetMutation = useMutation({
+    mutationFn: clearQuietHours,
+    onSuccess: () => {
+      setStart(DEFAULT_QUIET_HOURS.start);
+      setEnd(DEFAULT_QUIET_HOURS.end);
+      setEditing(false);
+      onSaved();
+    },
+  });
+
+  const display = savedValue ?? null;
+  const displayText = display ? `${display.start} — ${display.end}` : 'Off';
+
+  return (
+    <Card padding="md">
+      <View className="flex-row items-center justify-between">
+        <View className="flex-row items-center gap-2 flex-1">
+          <IconMoon size={16} color={colors.moss} strokeWidth={1.5} />
+          <View className="flex-1">
+            <Text className="text-body text-ink">Quiet hours</Text>
+            <Text className="text-caption text-ink-3 mt-0.5">
+              No notifications during this window.
+            </Text>
+          </View>
+        </View>
+        {!editing ? (
+          <Pressable
+            onPress={() => {
+              setStart(initial.start);
+              setEnd(initial.end);
+              setEditing(true);
+            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Edit quiet hours"
+          >
+            <Text className="text-body text-moss font-medium">{displayText}</Text>
+          </Pressable>
+        ) : null}
+      </View>
+
+      {editing ? (
+        <View className="mt-4 gap-3">
+          <View className="flex-row gap-3 items-center">
+            <Text className="text-caption text-ink-3 w-12">Start</Text>
+            <TextInput
+              value={start}
+              onChangeText={setStart}
+              placeholder="21:00"
+              placeholderTextColor={colors.ink3}
+              maxLength={5}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="numbers-and-punctuation"
+              className="text-body text-ink border-b border-hairline pb-1 px-1"
+              style={{ minWidth: 60 }}
+            />
+          </View>
+          <View className="flex-row gap-3 items-center">
+            <Text className="text-caption text-ink-3 w-12">End</Text>
+            <TextInput
+              value={end}
+              onChangeText={setEnd}
+              placeholder="08:00"
+              placeholderTextColor={colors.ink3}
+              maxLength={5}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="numbers-and-punctuation"
+              className="text-body text-ink border-b border-hairline pb-1 px-1"
+              style={{ minWidth: 60 }}
+            />
+          </View>
+          <View className="flex-row gap-4 mt-2">
+            <Pressable
+              onPress={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending}
+              accessibilityRole="button"
+              accessibilityLabel="Save quiet hours"
+            >
+              <Text className="text-body text-moss font-medium">
+                {saveMutation.isPending ? 'Saving…' : 'Save'}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setEditing(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel"
+            >
+              <Text className="text-body text-ink-2">Cancel</Text>
+            </Pressable>
+            {savedValue ? (
+              <Pressable
+                onPress={() => resetMutation.mutate()}
+                disabled={resetMutation.isPending}
+                accessibilityRole="button"
+                accessibilityLabel="Turn off quiet hours"
+                className="ml-auto"
+              >
+                <Text className="text-body text-ink-3">Turn off</Text>
+              </Pressable>
+            ) : null}
+          </View>
+          <Text className="text-caption text-ink-3 font-serif italic">
+            HH:MM in 24-hour format. Push notifications haven't shipped yet — this
+            preference is saved for when they do.
+          </Text>
+        </View>
+      ) : null}
+    </Card>
   );
 }
 

@@ -38,3 +38,51 @@ export async function clearMaxHr(): Promise<void> {
     // Best-effort — if the key was never set there's nothing to clear.
   }
 }
+
+// Quiet hours per PRD §6: "Quiet hours with no notifications." Stored as
+// "HH:MM" strings (24h). Push notifications aren't wired yet, but capturing
+// the preference now means we don't bother the user once they are.
+const KEY_QUIET_HOURS = 'cadence.quiet_hours';
+
+export interface QuietHours {
+  start: string; // "HH:MM"
+  end: string;
+}
+
+export const DEFAULT_QUIET_HOURS: QuietHours = { start: '21:00', end: '08:00' };
+
+function isValidTime(value: string): boolean {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+
+export async function getQuietHours(): Promise<QuietHours | null> {
+  try {
+    const raw = await SecureStore.getItemAsync(KEY_QUIET_HOURS);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<QuietHours>;
+    if (
+      typeof parsed.start === 'string' && isValidTime(parsed.start) &&
+      typeof parsed.end === 'string' && isValidTime(parsed.end)
+    ) {
+      return { start: parsed.start, end: parsed.end };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setQuietHours(value: QuietHours): Promise<void> {
+  if (!isValidTime(value.start) || !isValidTime(value.end)) {
+    throw new Error('Quiet hours must be HH:MM in 24-hour format');
+  }
+  await SecureStore.setItemAsync(KEY_QUIET_HOURS, JSON.stringify(value));
+}
+
+export async function clearQuietHours(): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(KEY_QUIET_HOURS);
+  } catch {
+    // Best-effort.
+  }
+}
