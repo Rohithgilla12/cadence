@@ -1,26 +1,30 @@
 // Package notify is the push-notification surface for Cadence. It owns the
-// device_tokens table (one row per FCM token registered by a user's
-// device) and wraps Firebase Cloud Messaging for outbound sends.
+// device_tokens table and sends through the Expo Push Service.
 //
-// Per PRD §6 push notifications are opt-in via quiet hours and per-category
-// preferences. v1 only ships the plumbing — token registration + a test
-// send — so we can verify the round trip end-to-end before adding
-// templated triggers (pact reminders, circle activity, recovery prompts).
+// Why Expo Push (https://exp.host/--/api/v2/push/send) instead of direct
+// FCM / APNs: the mobile client uses expo-notifications, which issues
+// Expo push tokens ("ExponentPushToken[...]"). Expo's service handles the
+// fan-out to APNs + FCM behind the scenes — no Firebase Admin Messaging
+// dependency on this side, no APNs HTTP/2 plumbing. Per PRD §17 Phase 6
+// FCM is named but the Expo path satisfies the requirement cleanly.
+//
+// v1 only ships token registration + a test send so we can verify the
+// round trip end-to-end. Templated triggers (pact reminders, recovery
+// prompts, circle activity) ship in subsequent sessions.
 package notify
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
-	firebase "firebase.google.com/go/v4"
-	"firebase.google.com/go/v4/messaging"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"google.golang.org/api/option"
 )
 
 type Platform string
@@ -48,8 +52,7 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 
 // Upsert idempotently registers a token. The token is the primary key, so
 // re-registering refreshes last_seen_at and reclaims ownership when a
-// device's FCM token gets reused after a user switch (rare but happens
-// on shared simulators).
+// device's Expo push token gets reused after a user switch.
 func (r *Repository) Upsert(ctx context.Context, token string, userID uuid.UUID, platform Platform) error {
 	token = strings.TrimSpace(token)
 	if token == "" {
@@ -72,10 +75,6 @@ func (r *Repository) Upsert(ctx context.Context, token string, userID uuid.UUID,
 	return nil
 }
 
-// DeleteForUser drops a single (user, token) row. Used on explicit
-// unregister (the device opens the app, user toggles notifications off)
-// and on sign-out. Returns nil even when the row didn't exist — the
-// caller wants the absence, not a confirmation we did the work.
 func (r *Repository) DeleteForUser(ctx context.Context, token string, userID uuid.UUID) error {
 	_, err := r.pool.Exec(ctx, `
 		DELETE FROM device_tokens WHERE token = $1 AND user_id = $2
@@ -86,9 +85,6 @@ func (r *Repository) DeleteForUser(ctx context.Context, token string, userID uui
 	return nil
 }
 
-// ListForUser returns every token currently registered to a user. The
-// sender fans the message out across all of them so a user with phone +
-// iPad gets the notification on both.
 func (r *Repository) ListForUser(ctx context.Context, userID uuid.UUID) ([]DeviceToken, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT token, user_id, platform, created_at, last_seen_at
@@ -113,82 +109,126 @@ func (r *Repository) ListForUser(ctx context.Context, userID uuid.UUID) ([]Devic
 	return out, rows.Err()
 }
 
-// PruneInvalid drops a token that the FCM API reports as unregistered or
-// invalid. Called by the sender when it gets back a NOT_FOUND or
-// UNREGISTERED error per message — keeps the table clean over time.
 func (r *Repository) PruneInvalid(ctx context.Context, token string) error {
 	_, err := r.pool.Exec(ctx, `DELETE FROM device_tokens WHERE token = $1`, token)
 	return err
 }
 
-// Sender wraps firebase.Messaging. Nil-safe — when not configured (local
-// dev without a Firebase credentials file), Send returns ErrSenderDisabled
-// so the HTTP layer can return a graceful 503 instead of a panic.
+// expoPushURL is the Expo Push Service endpoint. Public, no auth required
+// — tokens are scoped to a specific Expo project and rate-limited.
+const expoPushURL = "https://exp.host/--/api/v2/push/send"
+
+// Sender posts batches to the Expo Push Service. The previous Firebase
+// Admin Messaging-backed implementation was incompatible with our static-
+// framework iOS build chain; Expo Push avoids the native conflict entirely.
 type Sender struct {
-	client *messaging.Client
+	client *http.Client
 	repo   *Repository
 }
 
 var ErrSenderDisabled = errors.New("push sender not configured")
 
-func NewSender(ctx context.Context, repo *Repository, credentialsPath string) (*Sender, error) {
-	if credentialsPath == "" {
-		return &Sender{repo: repo}, nil // disabled but usable for token registration only
-	}
-	app, err := firebase.NewApp(ctx, nil, option.WithCredentialsFile(credentialsPath))
-	if err != nil {
-		return nil, fmt.Errorf("firebase app: %w", err)
-	}
-	client, err := app.Messaging(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("firebase messaging client: %w", err)
-	}
-	return &Sender{client: client, repo: repo}, nil
+// NewSender returns a Sender. Always usable — there's no offline-disabled
+// state for Expo Push since it's a plain HTTPS endpoint. Kept signature
+// compatible with the old constructor.
+func NewSender(_ context.Context, repo *Repository, _ string) (*Sender, error) {
+	return &Sender{
+		client: &http.Client{Timeout: 15 * time.Second},
+		repo:   repo,
+	}, nil
 }
 
 type Payload struct {
 	Title string
 	Body  string
-	// Data fields ride alongside the user-visible payload. Kept flat
-	// (string → string) per FCM's contract.
-	Data map[string]string
+	Data  map[string]string
+}
+
+// expoMessage is one entry in the request body Expo expects. Their batch
+// endpoint accepts an array; we send one batch per SendToUser call.
+type expoMessage struct {
+	To    string            `json:"to"`
+	Title string            `json:"title,omitempty"`
+	Body  string            `json:"body,omitempty"`
+	Data  map[string]string `json:"data,omitempty"`
+	Sound string            `json:"sound,omitempty"`
+}
+
+// expoTicket maps to one element in the response data[] array. We only
+// care about the status + the token-invalidation signal.
+type expoTicket struct {
+	Status  string         `json:"status"`
+	Message string         `json:"message,omitempty"`
+	Details map[string]any `json:"details,omitempty"`
+}
+
+type expoResponse struct {
+	Data []expoTicket `json:"data"`
 }
 
 // SendToUser fans the payload out to every token registered for userID.
-// Tokens that the FCM API reports as invalid are pruned from the table
-// so the next send doesn't waste a round-trip. Successful and pruned
-// counts are returned so callers can log a single line.
+// Tokens that Expo reports as DeviceNotRegistered are pruned from the
+// table so the next send doesn't waste a round trip on them. Other
+// per-token errors are counted but don't abort the batch.
 func (s *Sender) SendToUser(ctx context.Context, userID uuid.UUID, payload Payload) (sent int, pruned int, err error) {
-	if s.client == nil {
-		return 0, 0, ErrSenderDisabled
-	}
 	tokens, err := s.repo.ListForUser(ctx, userID)
 	if err != nil {
 		return 0, 0, err
 	}
+	if len(tokens) == 0 {
+		return 0, 0, nil
+	}
+
+	messages := make([]expoMessage, 0, len(tokens))
 	for _, t := range tokens {
-		msg := &messaging.Message{
-			Token: t.Token,
-			Notification: &messaging.Notification{
-				Title: payload.Title,
-				Body:  payload.Body,
-			},
-			Data: payload.Data,
+		messages = append(messages, expoMessage{
+			To:    t.Token,
+			Title: payload.Title,
+			Body:  payload.Body,
+			Data:  payload.Data,
+		})
+	}
+	body, err := json.Marshal(messages)
+	if err != nil {
+		return 0, 0, fmt.Errorf("marshal payload: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, expoPushURL, bytes.NewReader(body))
+	if err != nil {
+		return 0, 0, fmt.Errorf("build request: %w", err)
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Accept-Encoding", "gzip, deflate")
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return 0, 0, fmt.Errorf("post expo push: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return 0, 0, fmt.Errorf("expo push http %d", resp.StatusCode)
+	}
+
+	var decoded expoResponse
+	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+		return 0, 0, fmt.Errorf("decode expo response: %w", err)
+	}
+
+	// The data[] order matches the request order, so we can map ticket → token
+	// by index.
+	for i, ticket := range decoded.Data {
+		if i >= len(tokens) {
+			break
 		}
-		if _, err := s.client.Send(ctx, msg); err != nil {
-			if messaging.IsUnregistered(err) || messaging.IsInvalidArgument(err) {
-				_ = s.repo.PruneInvalid(ctx, t.Token)
-				pruned++
-				continue
-			}
-			// A single token failure isn't fatal — log via the caller's
-			// error log if it cares, keep fanning out.
+		if ticket.Status == "ok" {
+			sent++
 			continue
 		}
-		sent++
+		// Common error code: "DeviceNotRegistered" → token is dead, prune it.
+		if errCode, _ := ticket.Details["error"].(string); errCode == "DeviceNotRegistered" {
+			_ = s.repo.PruneInvalid(ctx, tokens[i].Token)
+			pruned++
+		}
 	}
 	return sent, pruned, nil
 }
-
-// Ensure unused imports don't trip the linter on disabled builds.
-var _ = pgx.ErrNoRows
