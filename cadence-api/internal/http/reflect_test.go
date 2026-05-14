@@ -98,9 +98,8 @@ func TestReflect_RhythmBucketsByWeekday(t *testing.T) {
 			} `json:"byWeekday"`
 		} `json:"rhythm"`
 	}
-	if err := json.Unmarshal(body, &resp.Rhythm); err != nil {
-		// Try the wrapped shape.
-		_ = json.Unmarshal(body, &resp)
+	if err := json.Unmarshal(body, &resp); err != nil {
+		t.Fatalf("decode: %v body=%s", err, body)
 	}
 	if len(resp.Rhythm.ByWeekday) != 7 {
 		t.Fatalf("expected 7 weekday buckets, got %d", len(resp.Rhythm.ByWeekday))
