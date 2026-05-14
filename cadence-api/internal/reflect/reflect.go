@@ -21,6 +21,80 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
+// HeatmapDay is one cell in the consistency heatmap.
+type HeatmapDay struct {
+	Date           time.Time
+	TotalSlots     int
+	CompletedLogs  int
+	CompletionRate float64
+}
+
+type Heatmap struct {
+	WindowDays int
+	Days       []HeatmapDay // oldest → newest
+}
+
+// ComputeHeatmap returns per-day completion across active habits for the
+// last `windowDays` days. Days where the user had zero active habits still
+// appear with TotalSlots=0 so the client can render a uniform grid.
+func (r *Repository) ComputeHeatmap(
+	ctx context.Context,
+	userID uuid.UUID,
+	windowDays int,
+	now time.Time,
+) (Heatmap, error) {
+	if windowDays <= 0 || windowDays > 365 {
+		windowDays = 60
+	}
+	end := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	start := end.AddDate(0, 0, -(windowDays - 1))
+
+	rows, err := r.pool.Query(ctx, `
+		WITH days AS (
+			SELECT generate_series($1::date, $2::date, '1 day')::date AS day
+		),
+		slots AS (
+			SELECT d.day, COUNT(h.id) AS slot_count
+			FROM days d
+			LEFT JOIN habits h ON h.user_id = $3
+				AND h.archived_at IS NULL
+				AND h.created_at::date <= d.day
+			GROUP BY d.day
+		),
+		done AS (
+			SELECT hl.date::date AS day, COUNT(*) AS done_count
+			FROM habit_logs hl
+			JOIN habits h ON h.id = hl.habit_id
+			WHERE h.user_id = $3
+			  AND h.archived_at IS NULL
+			  AND hl.completed = true
+			  AND hl.date BETWEEN $1::date AND $2::date
+			GROUP BY hl.date
+		)
+		SELECT s.day, s.slot_count, COALESCE(d.done_count, 0)
+		FROM slots s
+		LEFT JOIN done d ON d.day = s.day
+		ORDER BY s.day
+	`, start, end, userID)
+	if err != nil {
+		return Heatmap{}, fmt.Errorf("query heatmap: %w", err)
+	}
+	defer rows.Close()
+
+	out := Heatmap{WindowDays: windowDays, Days: make([]HeatmapDay, 0, windowDays)}
+	for rows.Next() {
+		var day HeatmapDay
+		if err := rows.Scan(&day.Date, &day.TotalSlots, &day.CompletedLogs); err != nil {
+			return Heatmap{}, err
+		}
+		if day.TotalSlots > 0 {
+			day.CompletionRate = float64(day.CompletedLogs) / float64(day.TotalSlots)
+		}
+		out.Days = append(out.Days, day)
+	}
+	return out, rows.Err()
+}
+
 // WeekdayBucket is one row of the rhythm view. Index is 0=Mon..6=Sun to
 // match the runner-week convention used elsewhere in Cadence.
 type WeekdayBucket struct {

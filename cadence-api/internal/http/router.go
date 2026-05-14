@@ -97,6 +97,7 @@ func NewRouter(deps Deps) http.Handler {
 		if deps.Reflect != nil {
 			reflectH := newReflectHandler(deps.Reflect)
 			r.Get("/reflect/rhythm", reflectH.rhythm)
+			r.Get("/reflect/heatmap", reflectH.heatmap)
 		}
 	})
 
