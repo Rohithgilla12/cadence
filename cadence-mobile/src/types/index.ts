@@ -24,7 +24,7 @@ export interface DayDot {
 
 export type Insight =
   | { kind: 'pattern'; renderedText: string; emphasis?: string }
-  | { kind: 'listening' };
+  | { kind: 'listening'; daysOfData: number; minDaysForPattern: number };
 
 export interface CheckIn {
   mood?: Mood;

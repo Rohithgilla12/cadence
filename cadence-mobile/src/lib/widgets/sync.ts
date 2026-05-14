@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { WidgetBridge } from 'widget-bridge';
 
 import type { Habit, Insight } from '@/types';
+import { listeningCopy } from '@/lib/insight';
 import {
   WIDGET_APP_GROUP,
   WIDGET_SNAPSHOT_KEY,
@@ -32,7 +33,7 @@ function toInsightSnapshot(insight: Insight): WidgetInsightSnapshot {
   if (insight.kind === 'listening') {
     return {
       kind: 'listening',
-      renderedText: 'Cadence is listening.',
+      renderedText: listeningCopy(insight.daysOfData, insight.minDaysForPattern),
     };
   }
   return {

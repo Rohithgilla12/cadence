@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/auth"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/dailysum"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/insight"
 )
 
@@ -14,11 +15,22 @@ import (
 type insightsHandler struct {
 	engine *insight.Engine
 	repo   *insight.Repository
+	// dailySums is read for the empty-state ETA on today — "N more
+	// mornings of data and patterns start to surface." Nilable so existing
+	// tests that don't construct one still work; the today handler falls
+	// back to 0 when nil.
+	dailySums *dailysum.Repository
 }
 
-func newInsightsHandler(engine *insight.Engine, repo *insight.Repository) *insightsHandler {
-	return &insightsHandler{engine: engine, repo: repo}
+func newInsightsHandler(engine *insight.Engine, repo *insight.Repository, dailySums *dailysum.Repository) *insightsHandler {
+	return &insightsHandler{engine: engine, repo: repo, dailySums: dailySums}
 }
+
+// MinDaysForPattern mirrors insight.MinSampleSize — kept here as the
+// client-facing constant the today endpoint reports as the threshold.
+// Lets the mobile empty-state copy compute "N more mornings" without
+// hardcoding the magic number twice.
+const minDaysForPattern = 14
 
 type insightDTO struct {
 	ID           string         `json:"id"`
@@ -73,8 +85,20 @@ func (h *insightsHandler) today(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "list insights")
 		return
 	}
+	daysOfData := 0
+	if h.dailySums != nil {
+		// Failing this query shouldn't take down /today — the count is
+		// nice-to-have for the empty-state copy. Default to 0 on error.
+		if n, err := h.dailySums.CountForUser(r.Context(), u.ID); err == nil {
+			daysOfData = n
+		}
+	}
 	if len(eligible) == 0 {
-		writeJSON(w, http.StatusOK, map[string]any{"insight": nil})
+		writeJSON(w, http.StatusOK, map[string]any{
+			"insight":           nil,
+			"daysOfData":        daysOfData,
+			"minDaysForPattern": minDaysForPattern,
+		})
 		return
 	}
 	picked := eligible[0]
@@ -84,7 +108,11 @@ func (h *insightsHandler) today(w http.ResponseWriter, r *http.Request) {
 		// Log path lives elsewhere; here we silently fall through.
 		_ = err
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"insight": toInsightDTO(picked)})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"insight":           toInsightDTO(picked),
+		"daysOfData":        daysOfData,
+		"minDaysForPattern": minDaysForPattern,
+	})
 }
 
 // list returns all above-threshold insights for the user, ranked by effect

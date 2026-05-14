@@ -21,7 +21,15 @@ const HEATMAP_WINDOW_DAYS = 63; // 9 weeks for a clean 9-col grid
 // Reflect is the wedge surface (PRD §7, §8). When the engine has found
 // patterns it shows them all here, ranked by effect size. Until then it's
 // an honest listening state — we never fabricate insights to fill space.
-const LISTENING_INSIGHT: Insight = { kind: 'listening' };
+// The 0/14 defaults make InsightCard render the calm "about two weeks of
+// mornings…" copy; Reflect doesn't fetch the per-user count itself because
+// the surrounding section already says "after about two weeks…" — fetching
+// just to refine an already-honest sentence isn't worth the extra round-trip.
+const LISTENING_INSIGHT: Insight = {
+  kind: 'listening',
+  daysOfData: 0,
+  minDaysForPattern: 14,
+};
 
 export default function ReflectScreen() {
   const habitsQuery = useQuery({

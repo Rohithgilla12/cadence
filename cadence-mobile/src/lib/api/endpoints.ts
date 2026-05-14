@@ -144,10 +144,16 @@ export const endpoints = {
         .then((r) => r.imported),
 
   // Returns the rotated insight for Today (or null when none eligible — show
-  // 'Cadence is listening' per PRD §8). Server stamps shown_at so calling
-  // this advances the rotation.
+  // the listening empty state per PRD §8). daysOfData + minDaysForPattern
+  // drive the "N more mornings…" copy in that empty state without forcing
+  // a second round-trip. Server stamps shown_at so calling this advances
+  // the rotation.
   getInsightToday: (client: ApiClient) => () =>
-    client.request<{ insight: ApiInsight | null }>('/v1/insights/today').then((r) => r.insight),
+    client.request<{
+      insight: ApiInsight | null;
+      daysOfData: number;
+      minDaysForPattern: number;
+    }>('/v1/insights/today'),
 
   // All above-threshold insights for the Reflect grid, ordered by effect
   // size descending. Doesn't advance the rotation.

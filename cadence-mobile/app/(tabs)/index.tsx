@@ -120,9 +120,14 @@ export default function TodayScreen() {
     queryFn: endpoints.getInsightToday(apiClient),
     staleTime: 60 * 60_000,
   });
-  const insight: Insight = insightQuery.data
-    ? { kind: 'pattern', renderedText: insightQuery.data.renderedText }
-    : { kind: 'listening' };
+  const insightResponse = insightQuery.data;
+  const insight: Insight = insightResponse?.insight
+    ? { kind: 'pattern', renderedText: insightResponse.insight.renderedText }
+    : {
+        kind: 'listening',
+        daysOfData: insightResponse?.daysOfData ?? 0,
+        minDaysForPattern: insightResponse?.minDaysForPattern ?? 14,
+      };
 
   const healthStatusQuery = useQuery({
     queryKey: ['health-status'],

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { IconSparkles } from '@tabler/icons-react-native';
 import { colors } from '@/theme/tokens';
+import { listeningCopy } from '@/lib/insight';
 import type { Insight } from '@/types';
 
 interface InsightCardProps {
@@ -29,7 +30,7 @@ export function InsightCard({ insight }: InsightCardProps) {
   const isListening = insight.kind === 'listening';
 
   return (
-    <View className="bg-moss-bg border-l-2 border-l-moss-light rounded-r-xl pl-4 pr-4 py-3.5">
+    <View className="bg-moss-bg rounded-xl px-4 py-3.5">
       <View className="flex-row items-center gap-1 mb-1.5">
         <IconSparkles size={12} color={colors.moss} strokeWidth={1.5} />
         <Text className="text-eyebrow text-moss uppercase">
@@ -39,7 +40,7 @@ export function InsightCard({ insight }: InsightCardProps) {
 
       {isListening ? (
         <Text className="text-body text-ink-2 font-serif italic">
-          Cadence is listening. Patterns appear after about a week of daily check-ins.
+          {listeningCopy(insight.daysOfData, insight.minDaysForPattern)}
         </Text>
       ) : (
         renderPatternBody(insight.renderedText, insight.emphasis)
