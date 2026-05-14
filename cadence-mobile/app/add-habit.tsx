@@ -13,7 +13,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { IconPicker, NameField, SourceLinkPicker, TimeOfDayPicker } from '@/components/habit';
+import {
+  IconPicker,
+  NameField,
+  SharedWithPicker,
+  SourceLinkPicker,
+  TimeOfDayPicker,
+} from '@/components/habit';
 import { SectionLabel } from '@/components/layout';
 import { Button } from '@/components/primitives';
 import { endpoints } from '@/lib/api';
@@ -31,6 +37,7 @@ export default function AddHabitScreen() {
   const [icon, setIcon] = useState<string>('sparkles');
   const [timeOfDay, setTimeOfDay] = useState<ApiTimeOfDay>('anytime');
   const [sourceLink, setSourceLink] = useState<ApiHabitSourceLink | null>(null);
+  const [sharedWith, setSharedWith] = useState<string[]>([]);
 
   const createMutation = useMutation({
     mutationFn: () =>
@@ -39,6 +46,7 @@ export default function AddHabitScreen() {
         icon,
         timeOfDay,
         sourceLink: sourceLink ?? undefined,
+        sharedWith: sharedWith.length > 0 ? sharedWith : undefined,
         trackContext: true,
       }),
     onSuccess: (created) => {
@@ -107,6 +115,13 @@ export default function AddHabitScreen() {
           <SourceLinkPicker value={sourceLink} onChange={setSourceLink} />
           <Text className="text-caption text-ink-3 mt-2">
             With Apple Health, matching workouts pre-check this habit. You can always untick.
+          </Text>
+
+          <SectionLabel label="SHARE WITH" />
+          <SharedWithPicker value={sharedWith} onChange={setSharedWith} />
+          <Text className="text-caption text-ink-3 mt-2">
+            Completions show up in the chosen circle's feed. Only the fact you did it —
+            no health data, no run details.
           </Text>
         </ScrollView>
 

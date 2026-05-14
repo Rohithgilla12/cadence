@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, Share, Text, View } from 'react-native';
 
+import { FeedItem } from '@/components/circle';
 import { Screen, SectionLabel } from '@/components/layout';
 import { Card } from '@/components/primitives';
 import { endpoints } from '@/lib/api';
@@ -16,7 +17,7 @@ import { queryKeys } from '@/lib/api/queryKeys';
 import { useAuth } from '@/lib/auth';
 import { apiClient } from '@/lib/client';
 import { colors } from '@/theme/tokens';
-import type { ApiPact, ApiPactProgress } from '@/lib/api/types';
+import type { ApiFeedItem, ApiPact, ApiPactProgress } from '@/lib/api/types';
 
 // Universal-link domain. Resolves to a server endpoint that will route
 // friends straight to the join screen once they install the app. The
@@ -54,6 +55,53 @@ export default function CircleDetailScreen() {
     queryKey: queryKeys.circlePacts(circleId),
     queryFn: () => endpoints.listPacts(apiClient)(circleId),
     enabled: circleId.length > 0,
+  });
+  const feedQuery = useQuery({
+    queryKey: queryKeys.circleFeed(circleId),
+    queryFn: () => endpoints.listCircleFeed(apiClient)(circleId),
+    enabled: circleId.length > 0,
+    staleTime: 30_000,
+  });
+
+  // Optimistic reaction toggle: flip the cached count/state immediately,
+  // reconcile with the server response, revert on error. Reactions are the
+  // most-tapped interaction in the feed surface — perceived latency matters.
+  const reactionMutation = useMutation({
+    mutationFn: (itemId: string) => endpoints.toggleFeedReaction(apiClient)(itemId),
+    onMutate: async (itemId) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.circleFeed(circleId) });
+      const previous = queryClient.getQueryData<ApiFeedItem[]>(queryKeys.circleFeed(circleId));
+      queryClient.setQueryData<ApiFeedItem[]>(queryKeys.circleFeed(circleId), (items) =>
+        items?.map((item) =>
+          item.id !== itemId
+            ? item
+            : {
+                ...item,
+                viewerReacted: !item.viewerReacted,
+                reactionCount: item.reactionCount + (item.viewerReacted ? -1 : 1),
+              },
+        ),
+      );
+      return { previous };
+    },
+    onError: (_err, _itemId, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.circleFeed(circleId), context.previous);
+      }
+    },
+    onSuccess: (updated, itemId) => {
+      queryClient.setQueryData<ApiFeedItem[]>(queryKeys.circleFeed(circleId), (items) =>
+        items?.map((item) =>
+          item.id !== itemId
+            ? item
+            : {
+                ...item,
+                reactionCount: updated.reactionCount,
+                viewerReacted: updated.viewerReacted,
+              },
+        ),
+      );
+    },
   });
 
   const meQuery = useQuery({
@@ -170,6 +218,33 @@ export default function CircleDetailScreen() {
               </View>
             </>
           ) : null}
+
+          <SectionLabel label="FEED" />
+          {feedQuery.isLoading ? (
+            <View className="py-4 items-center">
+              <ActivityIndicator color={colors.moss} />
+            </View>
+          ) : (feedQuery.data ?? []).length === 0 ? (
+            <Card padding="md">
+              <Text className="text-body text-ink-2 font-serif italic">
+                Quiet so far. When someone checks off a shared habit, it lands here.
+              </Text>
+            </Card>
+          ) : (
+            <View className="gap-2">
+              {(feedQuery.data ?? []).map((item) => (
+                <FeedItem
+                  key={item.id}
+                  item={item}
+                  onToggleReaction={() => reactionMutation.mutate(item.id)}
+                  busy={
+                    reactionMutation.isPending &&
+                    reactionMutation.variables === item.id
+                  }
+                />
+              ))}
+            </View>
+          )}
 
           <SectionLabel label={`MEMBERS · ${detailQuery.data.members.length}`} />
           <View className="gap-2">

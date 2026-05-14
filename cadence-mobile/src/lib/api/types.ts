@@ -59,11 +59,25 @@ export interface ApiHabit {
   timeOfDay: ApiTimeOfDay;
   target?: ApiTarget;
   sourceLink?: ApiHabitSourceLink;
+  sharedWith: string[]; // circle IDs this habit emits feed items into
   trackContext: boolean;
   doneToday: boolean;
   streak: number;
   autoDetected: boolean;
   createdAt: string;
+}
+
+export interface ApiFeedItem {
+  id: string;
+  circleId: string;
+  userId: string;
+  displayName: string;
+  kind: 'habit_done' | 'pact_complete' | 'back_after_quiet';
+  payload?: Record<string, unknown>;
+  note?: string;
+  createdAt: string;
+  reactionCount: number;
+  viewerReacted: boolean;
 }
 
 export interface ListHabitsResponse {

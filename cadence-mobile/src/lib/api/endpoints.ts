@@ -3,6 +3,7 @@ import type {
   ApiCheckIn,
   ApiCircle,
   ApiCircleDetail,
+  ApiFeedItem,
   ApiHabit,
   ApiHabitSourceLink,
   ApiInsight,
@@ -21,11 +22,13 @@ interface CreateHabitInput {
   timeOfDay?: ApiTimeOfDay;
   target?: ApiTarget;
   sourceLink?: ApiHabitSourceLink;
+  sharedWith?: string[];
   trackContext?: boolean;
 }
 
 // Mirrors the Go updateHabitRequest. Omitted fields are left untouched;
-// clearTarget / clearSourceLink explicitly set the column to NULL.
+// clearTarget / clearSourceLink explicitly set the column to NULL. sharedWith
+// is a full-replace when provided — empty array clears all sharing.
 interface UpdateHabitInput {
   name?: string;
   icon?: string;
@@ -34,6 +37,7 @@ interface UpdateHabitInput {
   clearTarget?: boolean;
   sourceLink?: ApiHabitSourceLink;
   clearSourceLink?: boolean;
+  sharedWith?: string[];
   trackContext?: boolean;
 }
 
@@ -152,6 +156,17 @@ export const endpoints = {
 
   completePact: (client: ApiClient) => (pactId: string) =>
     client.request<void>(`/v1/pacts/${pactId}/complete`, { method: 'POST' }),
+
+  listCircleFeed: (client: ApiClient) => (circleId: string) =>
+    client
+      .request<{ items: ApiFeedItem[] }>(`/v1/circles/${circleId}/feed`)
+      .then((r) => r.items),
+
+  toggleFeedReaction: (client: ApiClient) => (itemId: string) =>
+    client.request<{ reactionCount: number; viewerReacted: boolean }>(
+      `/v1/feed/${itemId}/reactions/toggle`,
+      { method: 'POST' },
+    ),
 };
 
 // Mirrors the Go putDailySumRequest. All fields optional — client uploads

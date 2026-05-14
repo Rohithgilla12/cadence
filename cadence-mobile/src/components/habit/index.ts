@@ -4,3 +4,4 @@ export { NameField } from './NameField';
 export { IconPicker } from './IconPicker';
 export { TimeOfDayPicker } from './TimeOfDayPicker';
 export { SourceLinkPicker } from './SourceLinkPicker';
+export { SharedWithPicker } from './SharedWithPicker';
