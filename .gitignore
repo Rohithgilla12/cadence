@@ -51,3 +51,10 @@ firebase-admin*.json
 
 # Generated
 coverage/
+
+# iOS build artifacts (TestFlight / EAS exports — large, ephemeral)
+*.ipa
+*.dSYM.zip
+
+# Local Claude Code state (per-session settings, not source-of-truth)
+.claude/
