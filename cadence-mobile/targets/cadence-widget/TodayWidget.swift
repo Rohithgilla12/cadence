@@ -157,6 +157,96 @@ private struct TodayMediumView: View {
     }
 }
 
+// systemLarge: the journal-page layout. Shows the count, the week strip,
+// every habit (up to 8), and a single line from the rotated insight if
+// one exists. Designed to live alone on a home screen for a user who's
+// committed to checking in daily.
+private struct TodayLargeView: View {
+    let snapshot: WidgetSnapshot
+
+    private var visibleHabits: [HabitSummary] {
+        Array(snapshot.habits.prefix(8))
+    }
+
+    private var insightTagline: String? {
+        guard snapshot.insight.kind == .pattern else { return nil }
+        return snapshot.insight.renderedText
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("TODAY")
+                .font(.system(size: 11, weight: .medium))
+                .tracking(0.8)
+                .foregroundStyle(WidgetTheme.ink3)
+
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("\(snapshot.doneCount)")
+                    .font(WidgetTheme.serif(size: 52))
+                    .foregroundStyle(WidgetTheme.ink)
+                Text("/ \(snapshot.totalCount)")
+                    .font(.system(size: 16))
+                    .foregroundStyle(WidgetTheme.ink3)
+                Spacer(minLength: 8)
+                Text(summaryText(done: snapshot.doneCount, total: snapshot.totalCount))
+                    .font(.system(size: 13))
+                    .foregroundStyle(WidgetTheme.ink2)
+                    .multilineTextAlignment(.trailing)
+            }
+
+            WeekDots(dots: snapshot.weekDots)
+
+            Rectangle()
+                .fill(WidgetTheme.hairline)
+                .frame(height: 0.5)
+                .padding(.vertical, 2)
+
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(visibleHabits, id: \.id) { habit in
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(habit.doneToday ? WidgetTheme.moss : Color.clear)
+                            .overlay(
+                                Circle().stroke(
+                                    habit.doneToday ? Color.clear : WidgetTheme.hairline2,
+                                    lineWidth: 0.5
+                                )
+                            )
+                            .frame(width: 9, height: 9)
+                        Text(habit.name)
+                            .font(.system(size: 13))
+                            .foregroundStyle(habit.doneToday ? WidgetTheme.ink3 : WidgetTheme.ink)
+                            .strikethrough(habit.doneToday, color: WidgetTheme.ink3)
+                            .lineLimit(1)
+                    }
+                }
+                if snapshot.habits.isEmpty {
+                    Text("Add a practice in Cadence to begin.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(WidgetTheme.ink2)
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            if let tagline = insightTagline {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("PATTERN")
+                        .font(.system(size: 9, weight: .medium))
+                        .tracking(0.8)
+                        .foregroundStyle(WidgetTheme.moss)
+                    Text(tagline)
+                        .font(WidgetTheme.serif(size: 13, weight: .regular).italic())
+                        .foregroundStyle(WidgetTheme.ink2)
+                        .lineLimit(2)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .widgetURL(URL(string: "cadence://"))
+    }
+}
+
 struct TodayWidgetEntryView: View {
     @Environment(\.widgetFamily) var family
     let entry: SnapshotEntry
@@ -166,6 +256,8 @@ struct TodayWidgetEntryView: View {
             switch family {
             case .systemSmall:
                 TodaySmallView(snapshot: entry.snapshot)
+            case .systemLarge:
+                TodayLargeView(snapshot: entry.snapshot)
             default:
                 TodayMediumView(snapshot: entry.snapshot)
             }
@@ -190,7 +282,7 @@ struct TodayWidget: Widget {
         }
         .configurationDisplayName("Today")
         .description("Your habits and this week's rhythm.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
         .contentMarginsDisabled()
     }
 }
