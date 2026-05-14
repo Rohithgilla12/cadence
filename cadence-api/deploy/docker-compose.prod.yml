@@ -65,6 +65,23 @@ services:
     networks:
       - cadence-internal
 
+  # Marketing landing page served from a host bind mount. The HTML lives in
+  # the repo at landing/; CI pulls it onto the VPS via the same git-sync
+  # path Portainer uses for the compose file. Cloudflare Tunnel routes
+  # cadence.gilla.fun → http://cadence-landing:80 via the Zero Trust
+  # dashboard (no config-file).
+  cadence-landing:
+    image: nginx:1.27-alpine
+    container_name: cadence-landing
+    restart: unless-stopped
+    volumes:
+      - ${LANDING_PATH:-/opt/cadence/landing}:/usr/share/nginx/html:ro
+      # Custom nginx config: clean URLs (/privacy, /terms) without the
+      # default trailing-slash 301 that emits http:// behind the tunnel.
+      - ${LANDING_PATH:-/opt/cadence/landing}/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - cadence-internal
+
   # Outbound-only tunnel — no inbound ports opened on the VPS. Token mode
   # means tunnel routing is configured in the Cloudflare Zero Trust dashboard
   # (api.cadence.gilla.fun -> http://cadence-api:8080), not in a config file.

@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Privacy · Cadence</title>
+    <meta name="description" content="What Cadence collects, what stays on your device, and what we never do with your data." />
+    <link rel="icon" type="image/svg+xml" href="/brand/mark-on-cream.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/legal.css" />
+  </head>
+  <body>
+    <main class="container">
+      <a class="mark" href="/" aria-label="Back to Cadence">
+        <svg width="32" height="32" viewBox="0 0 240 240" aria-hidden="true">
+          <circle cx="120" cy="120" r="72" stroke="#4a5a40" stroke-width="6" fill="none" />
+          <circle cx="120" cy="120" r="52" stroke="#4a5a40" stroke-width="6" fill="none" />
+          <circle cx="120" cy="120" r="32" fill="#4a5a40" />
+        </svg>
+        <span class="wordmark">Cadence</span>
+      </a>
+
+      <div class="eyebrow">Privacy</div>
+      <h1 class="page-title">How Cadence handles your data.</h1>
+      <p class="subtitle">Plain English. No dark patterns. No data sales.</p>
+      <p class="last-updated">Last updated · 14 May 2026</p>
+
+      <section class="tldr" aria-label="Summary">
+        <h2>The short version</h2>
+        <ul>
+          <li>Raw Apple Health samples never leave your phone. Only daily rollups (e.g. "slept 7h 12m") do.</li>
+          <li>We don't sell, rent, or share your data with advertisers. Ever.</li>
+          <li>Delete your account anytime from Settings · everything goes within 30 days.</li>
+        </ul>
+      </section>
+
+      <article>
+        <h2>1 · Who we are</h2>
+        <p>
+          Cadence is built and operated by Rohith Gilla as an independent project.
+          You can reach me at <a href="mailto:support@cadence.gilla.fun">support@cadence.gilla.fun</a>
+          for anything in this policy.
+        </p>
+
+        <h2>2 · What we collect</h2>
+        <h3>Account</h3>
+        <p>
+          When you sign in we receive a stable identifier from your sign-in provider
+          (Firebase Authentication), your display name, and your email address. We
+          create a Cadence user record keyed to that identifier.
+        </p>
+        <h3>Habits and logs</h3>
+        <p>
+          The habits you create, the times you check them off, any text notes you write,
+          and quiet-day reasons if you choose to add them.
+        </p>
+        <h3>Daily summaries</h3>
+        <p>
+          For habits where you've turned context tracking on, your phone computes a daily
+          summary locally and uploads only the summary — for example, "slept 7h 12m,
+          mood 4/5, HRV 48 ms." Raw HealthKit samples (individual heart-rate beats, sleep
+          stages, route GPS points) <strong>stay on your device</strong>.
+        </p>
+        <h3>Runs</h3>
+        <p>
+          If you connect Strava we receive your run summaries (distance, duration, pace,
+          aggregate heart-rate zones, start time). We do not store the per-second route
+          stream or the GPS trace beyond what's needed to render the map preview.
+        </p>
+        <h3>Circles</h3>
+        <p>
+          Membership in any circle you join, the habits you've explicitly chosen to share
+          with that circle, pacts you participate in, and flower reactions you send or
+          receive. Mood, sleep, and any health data are <strong>never shared</strong> with
+          circles, regardless of settings.
+        </p>
+        <h3>Device tokens</h3>
+        <p>
+          A push notification token for the device you're using. We use it to send the
+          notifications you've opted into, and nothing else.
+        </p>
+        <h3>Diagnostics</h3>
+        <p>
+          If the app crashes we may receive a stack trace via Sentry, with user identifiers
+          and request bodies scrubbed. This helps us fix bugs.
+        </p>
+
+        <h2>3 · What we don't collect</h2>
+        <ul>
+          <li>Raw HealthKit samples (heart rate ticks, individual sleep stages, full GPS routes).</li>
+          <li>Contacts, photos, microphone, or location outside of what HealthKit provides.</li>
+          <li>Cross-app advertising identifiers (IDFA). The app does not request ATT.</li>
+        </ul>
+
+        <h2>4 · How we use it</h2>
+        <ul>
+          <li><strong>To run the app.</strong> Sync your habits across devices, show your history.</li>
+          <li><strong>To surface insights.</strong> The correlation engine compares your daily summaries with your habit logs to find patterns. This computation happens on our server, and the inputs are the summaries you already chose to share.</li>
+          <li><strong>To send notifications you asked for.</strong> Reminders, quiet hours, circle pacts.</li>
+          <li><strong>To fix bugs.</strong> Scrubbed crash reports via Sentry.</li>
+        </ul>
+        <p>
+          We do not profile you for advertising and we don't sell or rent your data.
+        </p>
+
+        <h2>5 · Who can see what</h2>
+        <ul>
+          <li><strong>You</strong> can see everything attached to your account.</li>
+          <li><strong>Members of a circle you've joined</strong> can see the habits you've explicitly toggled "shared" for that circle, your participation in shared pacts, your display name, and your avatar. They cannot see your other habits, sleep, mood, HRV, or run details.</li>
+          <li><strong>No one else.</strong> No public feed, no discoverability, no leaderboards.</li>
+        </ul>
+
+        <h2>6 · Where data lives</h2>
+        <p>
+          Cadence's backend runs on a virtual private server in Singapore, with daily
+          encrypted backups. Authentication is delegated to Firebase Authentication
+          (Google LLC). Push delivery uses Expo Push Service, which forwards messages to
+          Apple Push Notification service and Google Firebase Cloud Messaging.
+        </p>
+
+        <h2>7 · How long we keep it</h2>
+        <p>
+          We keep your data while your account exists. When you delete your account from
+          Settings · Account, we delete your habit logs, daily summaries, circle
+          membership, and push tokens within 30 days. Encrypted backups roll off within
+          90 days. Anonymous, aggregate counters that can't be traced to you may persist.
+        </p>
+
+        <h2>8 · Your rights</h2>
+        <p>
+          You can request a JSON export of everything tied to your account at any time,
+          and you can delete your account from Settings · Account or by emailing me. If
+          you're in the EU, UK, or California you have additional rights under GDPR / UK
+          GDPR / CCPA — write to me and I'll honour them.
+        </p>
+
+        <h2>9 · Children</h2>
+        <p>
+          Cadence isn't built for under-16s and we don't knowingly collect data from
+          children. If you believe a child has signed up, please email me and I'll remove
+          the account.
+        </p>
+
+        <h2>10 · Security</h2>
+        <p>
+          Traffic between your device and our server is TLS-encrypted. The database is
+          access-controlled to the application only. We try hard, but no system is
+          perfect — if you find a security issue, please email me before disclosing
+          publicly.
+        </p>
+
+        <h2>11 · Changes</h2>
+        <p>
+          If we make a meaningful change to this policy we'll update the date above and,
+          for material changes, notify you in the app before they take effect.
+        </p>
+
+        <h2>12 · Contact</h2>
+        <p>
+          <a href="mailto:support@cadence.gilla.fun">support@cadence.gilla.fun</a>
+        </p>
+      </article>
+
+      <footer>
+        <span>Cadence · iOS · beta</span>
+        <span class="footer-links">
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+          <a href="mailto:support@cadence.gilla.fun">Support</a>
+          <a href="https://github.com/Rohithgilla12/cadence" target="_blank" rel="noopener">GitHub</a>
+        </span>
+      </footer>
+    </main>
+  </body>
+</html>
