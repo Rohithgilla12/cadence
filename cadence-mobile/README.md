@@ -33,9 +33,29 @@ src/
   theme/
     tokens.ts             # TS mirror of tailwind.config.js
 tailwind.config.js        # Design tokens — source of truth alongside DS §11
+modules/
+  widget-bridge/          # Local Expo Module — App Group UserDefaults + WidgetCenter reload
+targets/
+  cadence-widget/         # iOS WidgetKit extension (SwiftUI). Linked at prebuild
+                          # via @bacons/apple-targets.
 ```
 
 Path alias: `@/*` → `src/*`.
+
+## iOS Home Screen widgets
+
+The widget extension lives in `targets/cadence-widget/`. RN writes a JSON
+snapshot into the App Group `group.fun.gilla.cadence` via the
+`widget-bridge` local Expo Module; the SwiftUI widgets decode it on every
+timeline refresh. To build:
+
+```bash
+bunx expo prebuild -p ios --clean      # regenerates ios/ with the widget target
+bun run ios                            # builds and runs the app + widget
+```
+
+After install, long-press the home screen → "+" → search for "Cadence" to
+add the Today, Insight, or Lock widgets.
 
 ## Run locally
 

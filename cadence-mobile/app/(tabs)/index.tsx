@@ -12,6 +12,7 @@ import { endpoints } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queryKeys';
 import { apiClient } from '@/lib/client';
 import { detectFromSummary, getStatus, readDailySummary, readWorkoutsRange } from '@/lib/health';
+import { syncWidgetData } from '@/lib/widgets';
 import {
   dailyMetersForWeek,
   filterRuns,
@@ -199,6 +200,15 @@ export default function TodayScreen() {
 
   const habits = useMemo(() => habitsQuery.data?.map(toHabit) ?? [], [habitsQuery.data]);
   const doneCount = useMemo(() => habits.filter((h) => h.doneToday).length, [habits]);
+
+  // Mirror what's on screen into the iOS Home Screen / Lock Screen widgets.
+  // The sync layer dedupes by fingerprint so this can fire freely on every
+  // habit toggle. Until we have real per-day completion data the week strip
+  // honestly shows past days as quiet (see buildWeekDots).
+  useEffect(() => {
+    if (!habitsQuery.data) return;
+    syncWidgetData({ habits, insight });
+  }, [habits, insight, habitsQuery.data]);
 
   // PRD §9 — Auto-detection. When Apple Health has fresh data and a habit has
   // a sourceLink rule that matches today's workouts, fire a server toggle with

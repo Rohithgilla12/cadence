@@ -4,7 +4,8 @@
     "strict": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "widget-bridge": ["./modules/widget-bridge/src/index.ts"]
     }
   },
   "include": [

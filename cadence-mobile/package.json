@@ -39,6 +39,7 @@
     "react-native-worklets": "0.5.1"
   },
   "devDependencies": {
+    "@bacons/apple-targets": "^4.0.6",
     "@types/react": "~19.1.0",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
