@@ -32,6 +32,24 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     enabled: status === 'signed-in',
   });
 
+  // Once we're authenticated AND the server says onboarding is done, ask
+  // for the notification permission and post the FCM token. Idempotent on
+  // every relaunch: server upserts on the token itself, OS only shows the
+  // sheet the first time. Wrapped so a failed request doesn't block sign-in.
+  useEffect(() => {
+    if (status !== 'signed-in') return;
+    if (!meQuery.data?.onboardingCompleted) return;
+    let cancelled = false;
+    (async () => {
+      const { requestAndRegister } = await import('@/lib/push');
+      if (cancelled) return;
+      void requestAndRegister();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status, meQuery.data?.onboardingCompleted]);
+
   useEffect(() => {
     if (status === 'loading') return;
     const root = segments[0];

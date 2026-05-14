@@ -57,6 +57,23 @@ export const endpoints = {
   deleteMe: (client: ApiClient) => () =>
     client.request<void>('/v1/me', { method: 'DELETE' }),
 
+  registerDevice:
+    (client: ApiClient) => (input: { token: string; platform: 'ios' | 'android' }) =>
+      client.request<void>('/v1/me/devices', {
+        method: 'PUT',
+        body: JSON.stringify(input),
+      }),
+
+  unregisterDevice: (client: ApiClient) => (token: string) =>
+    client.request<void>(`/v1/me/devices/${encodeURIComponent(token)}`, {
+      method: 'DELETE',
+    }),
+
+  sendTestPush: (client: ApiClient) => () =>
+    client.request<{ sent: number; pruned: number }>('/v1/me/devices/test', {
+      method: 'POST',
+    }),
+
   listHabits: (client: ApiClient) => () =>
     client.request<ListHabitsResponse>('/v1/habits').then((r) => r.habits),
 

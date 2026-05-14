@@ -1,4 +1,5 @@
 import {
+  IconBell,
   IconChevronRight,
   IconFileText,
   IconHeartbeat,
@@ -175,6 +176,9 @@ export default function YouScreen() {
         />
       </View>
 
+      <SectionLabel label="NOTIFICATIONS" />
+      <PushTestRow />
+
       <SectionLabel label="LEGAL" />
       <View className="gap-2">
         <LegalRow
@@ -219,6 +223,63 @@ export default function YouScreen() {
 
       <Text className="text-micro text-ink-3 mt-8 text-center">Cadence · v0.1.0</Text>
     </Screen>
+  );
+}
+
+function PushTestRow() {
+  const testMutation = useMutation({
+    mutationFn: async () => {
+      const { requestAndRegister, sendTest } = await import('@/lib/push');
+      // Make sure permission + token are current before sending — useful if
+      // the user toggled notifications in Settings after first launch.
+      const result = await requestAndRegister();
+      if (!result.granted) {
+        throw new Error('Notifications are off in iOS Settings.');
+      }
+      return sendTest();
+    },
+    onSuccess: (result) => {
+      if (result.sent === 0) {
+        Alert.alert(
+          'No devices to send to',
+          'Re-open the app once after granting notification permission, then try again.',
+        );
+        return;
+      }
+      Alert.alert(
+        'Sent',
+        `Pushed to ${result.sent} ${result.sent === 1 ? 'device' : 'devices'}. Pull down the banner from Notification Center to see it.`,
+      );
+    },
+    onError: (err) => {
+      Alert.alert('Could not send', err instanceof Error ? err.message : 'Unknown error');
+    },
+  });
+
+  return (
+    <Card padding="md">
+      <View className="flex-row items-center gap-2 flex-1">
+        <IconBell size={16} color={colors.moss} strokeWidth={1.5} />
+        <View className="flex-1">
+          <Text className="text-body text-ink">Test notifications</Text>
+          <Text className="text-caption text-ink-3 mt-0.5">
+            Sends a hello push to verify everything works.
+          </Text>
+        </View>
+      </View>
+      <Pressable
+        onPress={() => testMutation.mutate()}
+        disabled={testMutation.isPending}
+        accessibilityRole="button"
+        accessibilityLabel="Send a test push"
+        style={({ pressed }) => (pressed ? { opacity: 0.8 } : undefined)}
+        className="self-start mt-3"
+      >
+        <Text className="text-body text-moss font-medium">
+          {testMutation.isPending ? 'Sending…' : 'Send test'}
+        </Text>
+      </Pressable>
+    </Card>
   );
 }
 
