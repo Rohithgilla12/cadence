@@ -112,6 +112,83 @@ func TestDailySummaries_PartialUpdatePreservesEarlierFields(t *testing.T) {
 	}
 }
 
+func TestDailySummaries_BulkImport(t *testing.T) {
+	srv, _ := newDailySumTestServer(t)
+
+	// Build a 14-day window so the test exercises a realistic onboarding
+	// retroactive-import payload, not a toy one.
+	summaries := make([]map[string]any, 0, 14)
+	for i := 14; i > 0; i-- {
+		summaries = append(summaries, map[string]any{
+			"date":             "2026-05-" + leftPad(13-i+14, 2),
+			"sleepHours":       6.5 + float64(i%3)*0.5,
+			"sleepDeepMinutes": 70 + i,
+			"hrvMs":            40 + i,
+			"restingHeartRate": 55,
+		})
+	}
+	status, body := doReq(t, srv, http.MethodPost, "/v1/daily-summaries/bulk", map[string]any{
+		"summaries": summaries,
+	})
+	if status != http.StatusOK {
+		t.Fatalf("bulk status %d body %s", status, body)
+	}
+	var resp struct {
+		Imported int `json:"imported"`
+	}
+	_ = json.Unmarshal(body, &resp)
+	if resp.Imported != 14 {
+		t.Fatalf("expected 14 imported, got %d", resp.Imported)
+	}
+}
+
+func TestDailySummaries_BulkRejectsBadEntry(t *testing.T) {
+	srv, _ := newDailySumTestServer(t)
+	status, _ := doReq(t, srv, http.MethodPost, "/v1/daily-summaries/bulk", map[string]any{
+		"summaries": []map[string]any{
+			{"date": "2026-05-13", "sleepHours": 7.0},
+			{"date": "2026-05-14", "sleepHours": 99.0}, // impossible
+		},
+	})
+	if status != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", status)
+	}
+}
+
+func TestDailySummaries_BulkRejectsTooMany(t *testing.T) {
+	srv, _ := newDailySumTestServer(t)
+	summaries := make([]map[string]any, 0, 95)
+	for i := 0; i < 95; i++ {
+		summaries = append(summaries, map[string]any{
+			"date":       "2026-01-" + leftPad(i+1, 2),
+			"sleepHours": 7.0,
+		})
+	}
+	status, _ := doReq(t, srv, http.MethodPost, "/v1/daily-summaries/bulk", map[string]any{
+		"summaries": summaries,
+	})
+	if status != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", status)
+	}
+}
+
+// leftPad renders an int with a fixed minimum width using zero padding —
+// just enough for ISO date components without pulling in fmt.Sprintf.
+func leftPad(n, width int) string {
+	s := ""
+	for n > 0 {
+		s = string(rune('0'+n%10)) + s
+		n /= 10
+	}
+	for len(s) < width {
+		s = "0" + s
+	}
+	if s == "" {
+		s = "0"
+	}
+	return s
+}
+
 func TestDailySummaries_RejectsImpossibleValues(t *testing.T) {
 	srv, _ := newDailySumTestServer(t)
 

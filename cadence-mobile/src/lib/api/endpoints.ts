@@ -131,6 +131,18 @@ export const endpoints = {
       body: JSON.stringify(body),
     }),
 
+  // Bulk import for the retroactive HealthKit pull at onboarding time. Cap
+  // matches the server (90 entries). Returns the count actually written.
+  bulkPutDailySummaries:
+    (client: ApiClient) =>
+    (summaries: Array<DailySummaryUpload & { date: string }>) =>
+      client
+        .request<{ imported: number }>('/v1/daily-summaries/bulk', {
+          method: 'POST',
+          body: JSON.stringify({ summaries }),
+        })
+        .then((r) => r.imported),
+
   // Returns the rotated insight for Today (or null when none eligible — show
   // 'Cadence is listening' per PRD §8). Server stamps shown_at so calling
   // this advances the rotation.

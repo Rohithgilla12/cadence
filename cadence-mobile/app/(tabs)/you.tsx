@@ -64,6 +64,15 @@ export default function YouScreen() {
   const deleteAccountMutation = useMutation({
     mutationFn: endpoints.deleteMe(apiClient),
     onSuccess: async () => {
+      // Drop the retroactive-import flag so the next install (or re-sign-in
+      // with a new account) reimports the user's HealthKit history rather
+      // than skipping. Best-effort — failure here doesn't block sign-out.
+      try {
+        const { clearHistoricalImport } = await import('@/lib/health');
+        await clearHistoricalImport();
+      } catch {
+        // Ignore — re-import on next onboarding handles this.
+      }
       // Server is gone — sign out the client so the next launch doesn't try
       // to use a stale Firebase token against a deleted user row.
       try {

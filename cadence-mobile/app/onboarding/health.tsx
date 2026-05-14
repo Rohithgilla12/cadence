@@ -1,18 +1,27 @@
 import {
   IconBolt,
+  IconCheck,
   IconHeartbeat,
   IconMoon,
   IconRun,
 } from '@tabler/icons-react-native';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Alert, Platform, ScrollView, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Platform, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { StepHeader, StepProgressDots } from '@/components/onboarding';
 import { Button } from '@/components/primitives';
-import { getStatus, requestPermissions } from '@/lib/health';
-import type { HealthAuthStatus } from '@/lib/health';
+import { endpoints } from '@/lib/api';
+import { apiClient } from '@/lib/client';
+import {
+  DEFAULT_IMPORT_DAYS,
+  getStatus,
+  hasHistoricalImportCompleted,
+  importHistoricalHealth,
+  requestPermissions,
+} from '@/lib/health';
+import type { HealthAuthStatus, ImportProgress } from '@/lib/health';
 import { colors, screenPaddingX } from '@/theme/tokens';
 
 interface Scope {
@@ -27,15 +36,55 @@ const SCOPES: Scope[] = [
   { label: 'Resting heart rate and HRV',          icon: <IconHeartbeat size={18} color={colors.moss} strokeWidth={1.5} /> },
 ];
 
+// Per-screen import state. Drives the progress copy below the scope list.
+type ImportState =
+  | { phase: 'idle' }
+  | { phase: 'running'; progress: ImportProgress }
+  | { phase: 'done'; uploaded: number }
+  | { phase: 'failed' };
+
 export default function OnboardingHealthScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [status, setStatus] = useState<HealthAuthStatus>('unknown');
   const [busy, setBusy] = useState(false);
+  const [importState, setImportState] = useState<ImportState>({ phase: 'idle' });
+  const importTriggered = useRef(false);
 
   useEffect(() => {
     getStatus().then(setStatus);
   }, []);
+
+  // Once HealthKit is authorized, run the retroactive import in the
+  // background. We don't block Continue on it — the user can move on
+  // and the import finishes silently. If the user has already imported
+  // (returning to the screen later) we skip.
+  useEffect(() => {
+    if (status !== 'authorized' || importTriggered.current) return;
+    importTriggered.current = true;
+    (async () => {
+      if (await hasHistoricalImportCompleted()) {
+        setImportState({ phase: 'done', uploaded: 0 });
+        return;
+      }
+      setImportState({
+        phase: 'running',
+        progress: { read: 0, total: DEFAULT_IMPORT_DAYS },
+      });
+      try {
+        const result = await importHistoricalHealth({
+          onProgress: (progress) => setImportState({ phase: 'running', progress }),
+        });
+        setImportState({ phase: 'done', uploaded: result.uploaded });
+        // Fire-and-forget — the correlation worker also runs on a 3am UTC
+        // cron, but kicking it off here means a pattern can surface as
+        // soon as the user hits Today, instead of waiting until tomorrow.
+        void endpoints.computeInsights(apiClient)().catch(() => {});
+      } catch {
+        setImportState({ phase: 'failed' });
+      }
+    })();
+  }, [status]);
 
   async function handleConnect() {
     setBusy(true);
@@ -92,7 +141,10 @@ export default function OnboardingHealthScreen() {
         </View>
 
         {status === 'authorized' ? (
-          <Text className="mt-8 text-body text-moss font-medium">Connected.</Text>
+          <View className="mt-8">
+            <Text className="text-body text-moss font-medium">Connected.</Text>
+            <ImportStatus state={importState} />
+          </View>
         ) : null}
 
         {status === 'unavailable' || Platform.OS !== 'ios' ? (
@@ -124,5 +176,39 @@ export default function OnboardingHealthScreen() {
         </View>
       </View>
     </View>
+  );
+}
+
+// Inline subcomponent — small enough not to warrant its own file, but
+// keeping the JSX out of the screen body so the four phases read clearly.
+function ImportStatus({ state }: { state: ImportState }) {
+  if (state.phase === 'idle') return null;
+  if (state.phase === 'running') {
+    const { read, total } = state.progress;
+    return (
+      <View className="mt-3 flex-row items-center gap-2">
+        <ActivityIndicator color={colors.moss} />
+        <Text className="text-caption text-ink-2">
+          Reading the last {total} days from your watch · {read}/{total}
+        </Text>
+      </View>
+    );
+  }
+  if (state.phase === 'done') {
+    return (
+      <View className="mt-3 flex-row items-center gap-2">
+        <IconCheck size={16} color={colors.moss} strokeWidth={2} />
+        <Text className="text-caption text-ink-2">
+          {state.uploaded > 0
+            ? `Imported ${state.uploaded} days of history.`
+            : 'History up to date.'}
+        </Text>
+      </View>
+    );
+  }
+  return (
+    <Text className="mt-3 text-caption text-ink-3">
+      Couldn't read your history right now — we'll try again later.
+    </Text>
   );
 }

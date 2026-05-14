@@ -45,6 +45,84 @@ type putDailySumRequest struct {
 	Source           string   `json:"source,omitempty"`
 }
 
+// Bulk import: cap per-request entries so a buggy client can't blow the
+// connection. 90 covers our practical max (PRD §8 14-day floor + headroom)
+// with room for a quarterly re-import too.
+const bulkDailySumMaxEntries = 90
+
+type bulkDailySumEntry struct {
+	Date string `json:"date"`
+	putDailySumRequest
+}
+
+type bulkDailySumRequest struct {
+	Summaries []bulkDailySumEntry `json:"summaries"`
+}
+
+func validateRanges(e *putDailySumRequest) string {
+	if e.SleepHours != nil && (*e.SleepHours < 0 || *e.SleepHours > 24) {
+		return "sleepHours out of range"
+	}
+	if e.RestingHeartRate != nil && (*e.RestingHeartRate < 25 || *e.RestingHeartRate > 220) {
+		return "restingHeartRate out of physiological range"
+	}
+	if e.HrvMs != nil && (*e.HrvMs < 0 || *e.HrvMs > 500) {
+		return "hrvMs out of range"
+	}
+	return ""
+}
+
+func (h *dailySumHandler) bulk(w http.ResponseWriter, r *http.Request) {
+	u, _ := auth.UserFromContext(r.Context())
+	var req bulkDailySumRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if len(req.Summaries) == 0 {
+		writeJSON(w, http.StatusOK, map[string]any{"imported": 0})
+		return
+	}
+	if len(req.Summaries) > bulkDailySumMaxEntries {
+		writeError(w, http.StatusBadRequest, "too many entries")
+		return
+	}
+
+	inputs := make([]dailysum.UpsertInput, 0, len(req.Summaries))
+	for _, e := range req.Summaries {
+		day, err := time.Parse("2006-01-02", e.Date)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "bad date — expect YYYY-MM-DD")
+			return
+		}
+		if msg := validateRanges(&e.putDailySumRequest); msg != "" {
+			writeError(w, http.StatusBadRequest, msg)
+			return
+		}
+		inputs = append(inputs, dailysum.UpsertInput{
+			UserID:           u.ID,
+			Date:             day,
+			SleepHours:       e.SleepHours,
+			SleepDeepMinutes: e.SleepDeepMinutes,
+			SleepRemMinutes:  e.SleepRemMinutes,
+			SleepCoreMinutes: e.SleepCoreMinutes,
+			Steps:            e.Steps,
+			DistanceMeters:   e.DistanceMeters,
+			ActiveEnergyKcal: e.ActiveEnergyKcal,
+			RestingHeartRate: e.RestingHeartRate,
+			HrvMs:            e.HrvMs,
+			Source:           e.Source,
+		})
+	}
+
+	written, err := h.repo.UpsertBulk(r.Context(), inputs)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "bulk upsert daily summaries")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"imported": written})
+}
+
 func (h *dailySumHandler) put(w http.ResponseWriter, r *http.Request) {
 	u, _ := auth.UserFromContext(r.Context())
 	dateStr := chi.URLParam(r, "date")

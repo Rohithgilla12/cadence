@@ -69,6 +69,7 @@ func NewRouter(deps Deps) http.Handler {
 
 		dailySums := newDailySumHandler(deps.DailySummaries)
 		r.Put("/daily-summaries/{date}", dailySums.put)
+		r.Post("/daily-summaries/bulk", dailySums.bulk)
 
 		if deps.InsightEngine != nil && deps.Insights != nil {
 			insights := newInsightsHandler(deps.InsightEngine, deps.Insights)

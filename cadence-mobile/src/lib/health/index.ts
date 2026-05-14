@@ -7,6 +7,13 @@ export {
   readWorkoutsRange,
   HealthKitError,
 } from './appleHealth';
+export {
+  importHistoricalHealth,
+  hasCompleted as hasHistoricalImportCompleted,
+  clearCompletion as clearHistoricalImport,
+  DEFAULT_IMPORT_DAYS,
+} from './import';
+export type { ImportResult, ImportProgress } from './import';
 export { detectFromSummary } from './autodetect';
 export type { AutodetectMatch } from './autodetect';
 export { readHeartRateForWorkout, DEFAULT_MAX_HR } from './heartRate';
