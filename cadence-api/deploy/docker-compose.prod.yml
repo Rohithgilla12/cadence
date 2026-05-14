@@ -23,8 +23,13 @@ services:
       start_period: 20s
 
   cadence-api:
-    # CADENCE_IMAGE is set in .env to a specific :sha tag for reproducible
-    # rollbacks. Falls back to :latest only for first-deploy convenience.
+    # CADENCE_IMAGE in .env should stay at :latest. CI pushes both a
+    # :<short-sha> tag and :latest on every successful build, and the
+    # SSH-deploy forced command only runs `docker compose pull cadence-api`
+    # — which respects whatever tag .env points at. Pinning .env to a
+    # specific SHA silently freezes prod regardless of what CI ships.
+    # If you need to roll back, swap .env to a known-good :<sha> tag
+    # manually and re-run the pull. See ../DEPLOY.md.
     image: ${CADENCE_IMAGE:-ghcr.io/rohithgilla12/cadence-api:latest}
     container_name: cadence-api
     restart: unless-stopped
