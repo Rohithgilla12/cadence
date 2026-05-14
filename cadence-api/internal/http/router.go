@@ -12,6 +12,7 @@ import (
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/habit"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/insight"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/pact"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/reflect"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/user"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -32,6 +33,7 @@ type Deps struct {
 	Circles        *circle.Repository
 	Pacts          *pact.Repository
 	Feed           *feed.Repository
+	Reflect        *reflect.Repository
 }
 
 func NewRouter(deps Deps) http.Handler {
@@ -90,6 +92,11 @@ func NewRouter(deps Deps) http.Handler {
 			feedH := newFeedHandler(deps.Feed)
 			r.Get("/circles/{id}/feed", feedH.listForCircle)
 			r.Post("/feed/{id}/reactions/toggle", feedH.toggleReaction)
+		}
+
+		if deps.Reflect != nil {
+			reflectH := newReflectHandler(deps.Reflect)
+			r.Get("/reflect/rhythm", reflectH.rhythm)
 		}
 	})
 
