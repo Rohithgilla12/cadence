@@ -79,7 +79,10 @@ const config: ExpoConfig = {
     "expo-system-ui",
     "@react-native-firebase/app",
     "@react-native-firebase/auth",
-    "@react-native-firebase/analytics",
+    // No @react-native-firebase/analytics plugin entry — the v24 package
+    // doesn't ship an app.plugin.js. The JS module still autolinks via
+    // Expo (the native pod follows from @react-native-firebase/app) and
+    // calls to analytics() pick up the already-initialized Firebase app.
     "@react-native-google-signin/google-signin",
     "expo-apple-authentication",
     "expo-secure-store",
