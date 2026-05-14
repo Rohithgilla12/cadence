@@ -1,9 +1,10 @@
 import '../global.css';
 
+import * as Notifications from 'expo-notifications';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -32,6 +33,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     enabled: status === 'signed-in',
   });
 
+  // Holds the unsubscribe for the notification-response listener so the
+  // effect that registers it can also tear it down across re-mounts.
+  const cleanupRef = useRef<(() => void) | null>(null);
+
   // Once we're authenticated AND the server says onboarding is done, ask
   // for the notification permission and post the FCM token. Idempotent on
   // every relaunch: server upserts on the token itself, OS only shows the
@@ -49,6 +54,33 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, [status, meQuery.data?.onboardingCompleted]);
+
+  // Route push taps. Server sets data.deeplink (cadence://reflect, etc.)
+  // and we steer the in-app router. Two paths:
+  //   • cold-start: the notification that launched the app — checked once
+  //     after onboarding is complete via handleInitialResponse.
+  //   • warm: a listener that fires whenever the user taps a push while
+  //     the app is open or backgrounded.
+  useEffect(() => {
+    if (status !== 'signed-in') return;
+    if (!meQuery.data?.onboardingCompleted) return;
+    let cancelled = false;
+    (async () => {
+      const { handleInitialResponse, handleResponse } = await import('@/lib/push/router');
+      if (cancelled) return;
+      void handleInitialResponse(router).catch(() => {});
+      const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+        handleResponse(response, router);
+      });
+      // Cleanup gets tied to the outer effect's return via closure.
+      cleanupRef.current = () => sub.remove();
+    })();
+    return () => {
+      cancelled = true;
+      cleanupRef.current?.();
+      cleanupRef.current = null;
+    };
+  }, [status, meQuery.data?.onboardingCompleted, router]);
 
   useEffect(() => {
     if (status === 'loading') return;

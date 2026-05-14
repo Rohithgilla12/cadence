@@ -71,11 +71,7 @@ func (h *devicesHandler) test(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, "push sender not configured")
 		return
 	}
-	sent, pruned, err := h.sender.SendToUser(r.Context(), u.ID, notify.Payload{
-		Title: "Cadence",
-		Body:  "Push is working. Hello from the server.",
-		Data:  map[string]string{"kind": "test"},
-	})
+	sent, pruned, err := h.sender.SendCategorized(r.Context(), u.ID, notify.CategoryTest, nil)
 	if errors.Is(err, notify.ErrSenderDisabled) {
 		writeError(w, http.StatusServiceUnavailable, "push sender disabled")
 		return

@@ -16,6 +16,7 @@ import (
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/config"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/db"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/insight"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/notify"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/robfig/cron/v3"
@@ -46,9 +47,17 @@ func main() {
 	defer pool.Close()
 
 	engine := insight.NewEngine(pool, insight.NewRepository(pool))
+	notifyRepo := notify.NewRepository(pool)
+	pushSender, err := notify.NewSender(ctx, notifyRepo, "")
+	if err != nil {
+		// Sender setup failing is recoverable — we still want correlations
+		// to run, just without the surface push at the end.
+		logger.Error("push sender init failed; correlations only", "err", err)
+		pushSender = nil
+	}
 
 	if runOnce {
-		if err := computeAll(ctx, pool, engine, logger); err != nil {
+		if err := computeAll(ctx, pool, engine, pushSender, logger); err != nil {
 			logger.Error("once pass failed", "err", err)
 			os.Exit(1)
 		}
@@ -63,7 +72,7 @@ func main() {
 	if _, err := c.AddFunc(spec, func() {
 		runCtx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 		defer cancel()
-		if err := computeAll(runCtx, pool, engine, logger); err != nil {
+		if err := computeAll(runCtx, pool, engine, pushSender, logger); err != nil {
 			logger.Error("nightly pass failed", "err", err)
 		}
 	}); err != nil {
@@ -82,7 +91,7 @@ func main() {
 	}
 }
 
-func computeAll(ctx context.Context, pool *pgxpool.Pool, engine *insight.Engine, logger *slog.Logger) error {
+func computeAll(ctx context.Context, pool *pgxpool.Pool, engine *insight.Engine, pushSender *notify.Sender, logger *slog.Logger) error {
 	rows, err := pool.Query(ctx, `SELECT id FROM users WHERE deleted_at IS NULL`)
 	if err != nil {
 		return err
@@ -101,7 +110,17 @@ func computeAll(ctx context.Context, pool *pgxpool.Pool, engine *insight.Engine,
 	}
 	start := time.Now()
 	totalSurfaced := 0
+	firstSurfaceNotifs := 0
 	for _, id := range ids {
+		// Count pre-existing insights so we can distinguish "user just got
+		// their first pattern ever" from "ongoing recompute." Failing here
+		// shouldn't block correlation — we just skip the notification.
+		preCount := -1
+		if pushSender != nil {
+			if n, err := countInsightsForUser(ctx, pool, id); err == nil {
+				preCount = n
+			}
+		}
 		surfaced, err := engine.ComputeForUser(ctx, id)
 		if err != nil {
 			// One user's failure shouldn't stop the rest of the run.
@@ -109,13 +128,34 @@ func computeAll(ctx context.Context, pool *pgxpool.Pool, engine *insight.Engine,
 			continue
 		}
 		totalSurfaced += surfaced
+
+		// PRD §6 voice: notify only when we have something genuinely new
+		// to say. "Your first pattern surfaced" is exactly that moment;
+		// re-confirmations on subsequent nights are not. Capping at the
+		// 0→N transition keeps the notification quiet by default.
+		if pushSender != nil && preCount == 0 && surfaced > 0 {
+			notifyCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			if _, _, sendErr := pushSender.SendCategorized(notifyCtx, id, notify.CategoryInsightSurfaced, nil); sendErr != nil {
+				logger.Warn("insight-surfaced push failed", "user_id", id, "err", sendErr)
+			} else {
+				firstSurfaceNotifs++
+			}
+			cancel()
+		}
 	}
 	logger.Info("compute pass complete",
 		"users", len(ids),
 		"insights_upserted", totalSurfaced,
+		"first_surface_pushes", firstSurfaceNotifs,
 		"elapsed", time.Since(start).String(),
 	)
 	return nil
+}
+
+func countInsightsForUser(ctx context.Context, pool *pgxpool.Pool, userID uuid.UUID) (int, error) {
+	var n int
+	err := pool.QueryRow(ctx, `SELECT count(*) FROM insights WHERE user_id = $1`, userID).Scan(&n)
+	return n, err
 }
 
 // slogPrintf bridges cron's Printf-style logger interface to slog. Avoids a

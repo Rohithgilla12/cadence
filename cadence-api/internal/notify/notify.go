@@ -144,6 +144,54 @@ type Payload struct {
 	Data  map[string]string
 }
 
+// Category names every notification kind Cadence can send. Each category
+// has a deterministic title/body template and a deep link target. PRD §6
+// voice — "quiet, observational, no urgency" — is enforced template-side.
+// Adding a notification kind = adding one Category here and one branch
+// in templateFor + deeplinkFor.
+type Category string
+
+const (
+	CategoryTest             Category = "test"
+	CategoryInsightSurfaced  Category = "insight_surfaced"
+	CategoryPactReminder     Category = "pact_reminder"
+	CategoryRecoveryNudge    Category = "recovery_nudge"
+)
+
+// TemplateFor returns the user-visible (title, body) for the category.
+// Templates are deterministic — we do not LLM-generate copy. New copy
+// requires editing this function.
+func TemplateFor(cat Category) (title, body string) {
+	switch cat {
+	case CategoryInsightSurfaced:
+		return "A pattern surfaced", "Cadence noticed something. Tap to open Reflect."
+	case CategoryPactReminder:
+		return "Pact this week", "How's the pact coming? Tap to check the circle."
+	case CategoryRecoveryNudge:
+		return "Coming back", "Quiet days are part of the rhythm."
+	case CategoryTest:
+		return "Cadence", "Push is working. Hello from the server."
+	default:
+		return "Cadence", ""
+	}
+}
+
+// DeeplinkFor returns the cadence:// route the notification should open
+// when tapped. Mobile reads this from data["deeplink"] in the push
+// response listener.
+func DeeplinkFor(cat Category) string {
+	switch cat {
+	case CategoryInsightSurfaced:
+		return "cadence://reflect"
+	case CategoryPactReminder:
+		return "cadence://circles"
+	case CategoryRecoveryNudge:
+		return "cadence://"
+	default:
+		return "cadence://"
+	}
+}
+
 // expoMessage is one entry in the request body Expo expects. Their batch
 // endpoint accepts an array; we send one batch per SendToUser call.
 type expoMessage struct {
@@ -164,6 +212,22 @@ type expoTicket struct {
 
 type expoResponse struct {
 	Data []expoTicket `json:"data"`
+}
+
+// SendCategorized resolves the category to its title/body/deeplink and
+// fans out. Caller-supplied extra data merges on top of the auto data so
+// per-call context (e.g. pactId, insightId) can ride along; "category"
+// and "deeplink" are always set.
+func (s *Sender) SendCategorized(ctx context.Context, userID uuid.UUID, cat Category, extra map[string]string) (sent int, pruned int, err error) {
+	title, body := TemplateFor(cat)
+	data := map[string]string{
+		"category": string(cat),
+		"deeplink": DeeplinkFor(cat),
+	}
+	for k, v := range extra {
+		data[k] = v
+	}
+	return s.SendToUser(ctx, userID, Payload{Title: title, Body: body, Data: data})
 }
 
 // SendToUser fans the payload out to every token registered for userID.
