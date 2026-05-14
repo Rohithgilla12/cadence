@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { JournalHeader, LineChoice, PageChapter } from '@/components/onboarding';
 import { Button } from '@/components/primitives';
+import { track } from '@/lib/analytics';
 import { endpoints } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queryKeys';
 import { apiClient } from '@/lib/client';
@@ -22,8 +23,9 @@ export default function IntentScreen() {
 
   const mutation = useMutation({
     mutationFn: (intent: IntentId) => endpoints.updateMe(apiClient)({ intent }),
-    onSuccess: (me) => {
+    onSuccess: (me, intent) => {
       queryClient.setQueryData<Me>(queryKeys.me, me);
+      track({ name: 'onboarding_intent_picked', intent });
       router.push('/onboarding/pillars');
     },
     onError: (err) => {

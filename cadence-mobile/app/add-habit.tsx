@@ -22,6 +22,7 @@ import {
 } from '@/components/habit';
 import { SectionLabel } from '@/components/layout';
 import { Button } from '@/components/primitives';
+import { track } from '@/lib/analytics';
 import { endpoints } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queryKeys';
 import type { ApiHabit, ApiHabitSourceLink, ApiTimeOfDay } from '@/lib/api/types';
@@ -56,6 +57,11 @@ export default function AddHabitScreen() {
         current ? [...current, created] : [created],
       );
       queryClient.invalidateQueries({ queryKey: queryKeys.habits });
+      track({
+        name: 'habit_created',
+        time_of_day: timeOfDay,
+        has_source_link: sourceLink !== null,
+      });
       router.back();
     },
     onError: (err) => {

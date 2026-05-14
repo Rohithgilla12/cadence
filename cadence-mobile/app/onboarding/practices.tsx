@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { JournalHeader, LineChoice, PageChapter } from '@/components/onboarding';
 import { Button } from '@/components/primitives';
+import { track } from '@/lib/analytics';
 import { endpoints } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queryKeys';
 import { apiClient } from '@/lib/client';
@@ -65,6 +66,8 @@ export default function PracticesScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.habits });
+      track({ name: 'onboarding_practices_chosen', count: selected.size });
+      track({ name: 'onboarding_completed' });
       // /onboarding/listening is a new route added in the redesign; the
       // typed-route cache regenerates on dev-server start.
       router.replace('/onboarding/listening' as unknown as Parameters<typeof router.replace>[0]);

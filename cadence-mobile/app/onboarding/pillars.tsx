@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { JournalHeader, LineChoice, PageChapter } from '@/components/onboarding';
 import { Button } from '@/components/primitives';
+import { track } from '@/lib/analytics';
 import { endpoints } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queryKeys';
 import { apiClient } from '@/lib/client';
@@ -34,8 +35,9 @@ export default function PillarsScreen() {
 
   const mutation = useMutation({
     mutationFn: (pillars: PillarId[]) => endpoints.updateMe(apiClient)({ pillars }),
-    onSuccess: (me) => {
+    onSuccess: (me, pillars) => {
       queryClient.setQueryData<Me>(queryKeys.me, me);
+      track({ name: 'onboarding_pillars_picked', count: pillars.length });
       router.push('/onboarding/health');
     },
     onError: (err) => {

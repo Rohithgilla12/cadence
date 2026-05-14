@@ -64,6 +64,13 @@ export default function YouScreen() {
   const deleteAccountMutation = useMutation({
     mutationFn: endpoints.deleteMe(apiClient),
     onSuccess: async () => {
+      try {
+        const { track, reset } = await import('@/lib/analytics');
+        track({ name: 'account_deleted' });
+        await reset();
+      } catch {
+        // Analytics never blocks UX.
+      }
       // Drop the retroactive-import flag so the next install (or re-sign-in
       // with a new account) reimports the user's HealthKit history rather
       // than skipping. Best-effort — failure here doesn't block sign-out.

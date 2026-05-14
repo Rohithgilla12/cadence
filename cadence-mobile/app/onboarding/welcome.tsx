@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandMark } from '@/components/brand';
 import { Button } from '@/components/primitives';
+import { track } from '@/lib/analytics';
 import { colors, screenPaddingX } from '@/theme/tokens';
 
 // The opening page. Single moment, lots of room. Three staggered fades:
@@ -101,7 +102,10 @@ export default function OnboardingWelcomeScreen() {
             label="Begin"
             variant="primary"
             fullWidth
-            onPress={() => router.push('/onboarding/intent')}
+            onPress={() => {
+              track({ name: 'onboarding_started' });
+              router.push('/onboarding/intent');
+            }}
           />
           <View className="mt-3 items-center">
             <Text

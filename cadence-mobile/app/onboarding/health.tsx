@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { JournalHeader, PageChapter } from '@/components/onboarding';
 import { Button } from '@/components/primitives';
+import { track } from '@/lib/analytics';
 import { endpoints } from '@/lib/api';
 import { apiClient } from '@/lib/client';
 import {
@@ -71,6 +72,7 @@ export default function OnboardingHealthScreen() {
           onProgress: (progress) => setImportState({ phase: 'running', progress }),
         });
         setImportState({ phase: 'done', uploaded: result.uploaded });
+        track({ name: 'health_import_completed', days: result.uploaded });
         void endpoints.computeInsights(apiClient)().catch(() => {});
       } catch {
         setImportState({ phase: 'failed' });
@@ -83,6 +85,10 @@ export default function OnboardingHealthScreen() {
     try {
       const next = await requestPermissions();
       setStatus(next);
+      track({
+        name: 'onboarding_health_outcome',
+        outcome: next === 'authorized' ? 'authorized' : next === 'unavailable' ? 'unavailable' : 'denied',
+      });
     } catch (err) {
       Alert.alert('Could not connect', err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -91,6 +97,11 @@ export default function OnboardingHealthScreen() {
   }
 
   function handleContinue() {
+    // Only fire 'skipped' if we never authorized — Continue from an
+    // already-authorized state is just navigation, not an outcome.
+    if (status !== 'authorized') {
+      track({ name: 'onboarding_health_outcome', outcome: 'skipped' });
+    }
     router.push('/onboarding/practices');
   }
 

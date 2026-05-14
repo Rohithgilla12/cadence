@@ -6,6 +6,7 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import { Button } from '@/components/primitives';
 import { Screen, SectionLabel } from '@/components/layout';
 import { HabitRow } from '@/components/habit';
+import { track } from '@/lib/analytics';
 import { InsightCard } from '@/components/insight';
 import {
   CheckInRow,
@@ -96,6 +97,7 @@ export default function TodayScreen() {
       queryClient.setQueryData<ApiHabit[]>(queryKeys.habits, (current) =>
         current?.map((h) => (h.id === habitId ? updated : h)),
       );
+      track({ name: 'habit_toggled', done: updated.doneToday, source: 'manual' });
     },
   });
 
@@ -254,6 +256,7 @@ export default function TodayScreen() {
       queryClient.setQueryData<ApiHabit[]>(queryKeys.habits, (current) =>
         current?.map((h) => (h.id === habitId ? updated : h)),
       );
+      track({ name: 'habit_toggled', done: updated.doneToday, source: 'apple_health' });
     },
   });
   useEffect(() => {

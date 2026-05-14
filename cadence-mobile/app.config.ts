@@ -79,6 +79,7 @@ const config: ExpoConfig = {
     "expo-system-ui",
     "@react-native-firebase/app",
     "@react-native-firebase/auth",
+    "@react-native-firebase/analytics",
     "@react-native-google-signin/google-signin",
     "expo-apple-authentication",
     "expo-secure-store",

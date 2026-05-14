@@ -2,6 +2,7 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
+import { track } from '@/lib/analytics';
 import { endpoints } from '@/lib/api';
 import { apiClient } from '@/lib/client';
 
@@ -59,7 +60,11 @@ export async function requestAndRegister(): Promise<PushRegisterResult> {
     return { granted: false, token: null };
   }
 
-  if (!granted) return { granted: false, token: null };
+  if (!granted) {
+    track({ name: 'push_permission_outcome', granted: false });
+    return { granted: false, token: null };
+  }
+  track({ name: 'push_permission_outcome', granted: true });
 
   let token: string | null = null;
   try {
