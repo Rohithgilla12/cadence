@@ -18,11 +18,12 @@ func NewLogRepository(pool *pgxpool.Pool) *LogRepository {
 }
 
 type UpsertLogInput struct {
-	HabitID   uuid.UUID
-	Date      time.Time
-	Completed bool
-	Value     *float64
-	Source    LogSource
+	HabitID    uuid.UUID
+	Date       time.Time
+	Completed  bool
+	Value      *float64
+	Source     LogSource
+	SkipReason *string // free-form tag like "travel" | "rest" | "sick" | "off"
 }
 
 func (r *LogRepository) Upsert(ctx context.Context, in UpsertLogInput) (Log, error) {
@@ -31,12 +32,16 @@ func (r *LogRepository) Upsert(ctx context.Context, in UpsertLogInput) (Log, err
 		src = SourceManual
 	}
 	row := r.pool.QueryRow(ctx, `
-		INSERT INTO habit_logs (habit_id, date, completed, value, source)
-		VALUES ($1, $2, $3, $4, $5)
-		ON CONFLICT (habit_id, date)
-		DO UPDATE SET completed = EXCLUDED.completed, value = EXCLUDED.value, source = EXCLUDED.source, logged_at = now()
+		INSERT INTO habit_logs (habit_id, date, completed, value, source, skip_reason)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (habit_id, date) DO UPDATE SET
+			completed   = EXCLUDED.completed,
+			value       = EXCLUDED.value,
+			source      = EXCLUDED.source,
+			skip_reason = EXCLUDED.skip_reason,
+			logged_at   = now()
 		RETURNING id, habit_id, date, completed, value, source, logged_at, skip_reason
-	`, in.HabitID, in.Date, in.Completed, in.Value, string(src))
+	`, in.HabitID, in.Date, in.Completed, in.Value, string(src), in.SkipReason)
 	var l Log
 	var srcStr string
 	if err := row.Scan(&l.ID, &l.HabitID, &l.Date, &l.Completed, &l.Value, &srcStr, &l.LoggedAt, &l.SkipReason); err != nil {

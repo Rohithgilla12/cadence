@@ -232,6 +232,63 @@ type toggleHabitRequest struct {
 	Source string `json:"source,omitempty"`
 }
 
+type skipHabitRequest struct {
+	Date   string `json:"date,omitempty"`   // YYYY-MM-DD; defaults to yesterday UTC
+	Reason string `json:"reason,omitempty"` // free-form short tag, optional
+}
+
+// skip records a not-completed log on the given date with an optional skip
+// reason. Used by the Recovery moment surface — the user acknowledging a
+// missed day. Idempotent: re-skipping the same date is a no-op overwrite.
+func (h *habitsHandler) skip(w http.ResponseWriter, r *http.Request) {
+	u, _ := auth.UserFromContext(r.Context())
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "bad id")
+		return
+	}
+	var req skipHabitRequest
+	if r.ContentLength > 0 {
+		if err := decodeJSON(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
+	if _, err := h.habits.GetByID(r.Context(), id, u.ID); err != nil {
+		writeError(w, http.StatusNotFound, "habit not found")
+		return
+	}
+	var date time.Time
+	if req.Date != "" {
+		date, err = time.Parse("2006-01-02", req.Date)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "bad date — expect YYYY-MM-DD")
+			return
+		}
+	} else {
+		date = startOfDayUTC(time.Now().AddDate(0, 0, -1))
+	}
+	var reasonPtr *string
+	if req.Reason != "" {
+		trimmed := req.Reason
+		if len(trimmed) > 64 {
+			trimmed = trimmed[:64]
+		}
+		reasonPtr = &trimmed
+	}
+	if _, err := h.logs.Upsert(r.Context(), habit.UpsertLogInput{
+		HabitID:    id,
+		Date:       date,
+		Completed:  false,
+		Source:     habit.SourceManual,
+		SkipReason: reasonPtr,
+	}); err != nil {
+		writeError(w, http.StatusInternalServerError, "upsert skip log")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *habitsHandler) toggle(w http.ResponseWriter, r *http.Request) {
 	u, _ := auth.UserFromContext(r.Context())
 	idStr := chi.URLParam(r, "id")

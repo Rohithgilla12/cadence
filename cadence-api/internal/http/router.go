@@ -54,6 +54,7 @@ func NewRouter(deps Deps) http.Handler {
 		r.Post("/habits", habits.create)
 		r.Patch("/habits/{id}", habits.update)
 		r.Post("/habits/{id}/toggle", habits.toggle)
+		r.Post("/habits/{id}/skip", habits.skip)
 		r.Delete("/habits/{id}", habits.archive)
 
 		checkIns := newCheckInHandler(deps.CheckIns)
