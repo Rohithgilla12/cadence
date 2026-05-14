@@ -2,3 +2,4 @@ export { WeekStrip } from './WeekStrip';
 export { CheckInRow } from './CheckInRow';
 export { RhythmStatsCard } from './RhythmStatsCard';
 export { TrainingCard } from './TrainingCard';
+export { RecoveryCard } from './RecoveryCard';

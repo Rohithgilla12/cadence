@@ -82,6 +82,14 @@ export const endpoints = {
   archiveHabit: (client: ApiClient) => (habitId: string) =>
     client.request<void>(`/v1/habits/${habitId}`, { method: 'DELETE' }),
 
+  skipHabit:
+    (client: ApiClient) =>
+    (habitId: string, input: { date?: string; reason?: string } = {}) =>
+      client.request<void>(`/v1/habits/${habitId}/skip`, {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+
   getCheckIn: (client: ApiClient) => (date: string) =>
     client
       .request<GetCheckInResponse>(`/v1/check-ins/${date}`)

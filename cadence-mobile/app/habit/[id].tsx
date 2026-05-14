@@ -1,4 +1,4 @@
-import { IconArrowLeft, IconHeartbeat, IconTrash } from '@tabler/icons-react-native';
+import { IconArrowLeft, IconHeartbeat, IconPencil, IconTrash } from '@tabler/icons-react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo } from 'react';
@@ -117,7 +117,17 @@ export default function HabitDetailScreen() {
               ) : null}
               <Text className="text-h2 font-serif text-ink flex-1">{habit.name}</Text>
             </View>
-            <StreakPill count={habit.streak} />
+            <View className="flex-row items-center gap-3">
+              <Pressable
+                onPress={() => router.push({ pathname: '/habit/edit/[id]', params: { id: habitId } })}
+                accessibilityRole="button"
+                accessibilityLabel="Edit practice"
+                hitSlop={8}
+              >
+                <IconPencil size={18} color={colors.ink2} strokeWidth={1.5} />
+              </Pressable>
+              <StreakPill count={habit.streak} />
+            </View>
           </View>
 
           {habit.target ? (

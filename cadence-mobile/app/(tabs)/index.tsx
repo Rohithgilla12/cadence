@@ -7,7 +7,13 @@ import { Button } from '@/components/primitives';
 import { Screen, SectionLabel } from '@/components/layout';
 import { HabitRow } from '@/components/habit';
 import { InsightCard } from '@/components/insight';
-import { WeekStrip, CheckInRow, RhythmStatsCard, TrainingCard } from '@/components/today';
+import {
+  CheckInRow,
+  RecoveryCard,
+  RhythmStatsCard,
+  TrainingCard,
+  WeekStrip,
+} from '@/components/today';
 import { endpoints } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queryKeys';
 import { apiClient } from '@/lib/client';
@@ -201,6 +207,21 @@ export default function TodayScreen() {
   const habits = useMemo(() => habitsQuery.data?.map(toHabit) ?? [], [habitsQuery.data]);
   const doneCount = useMemo(() => habits.filter((h) => h.doneToday).length, [habits]);
 
+  // Recovery candidates: habits with broken streaks that have existed long
+  // enough to actually have been done yesterday. Surfacing this on Today
+  // gives the user a quiet way to acknowledge a missed day per PRD §3
+  // principle 2 — coming back, not rebuilding.
+  const recoveryCount = useMemo(() => {
+    if (!habitsQuery.data) return 0;
+    const dayMs = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    return habitsQuery.data.filter((h) => {
+      if (h.streak > 0) return false;
+      const created = new Date(h.createdAt).getTime();
+      return now - created > dayMs;
+    }).length;
+  }, [habitsQuery.data]);
+
   // Mirror what's on screen into the iOS Home Screen / Lock Screen widgets.
   // The sync layer dedupes by fingerprint so this can fire freely on every
   // habit toggle. Until we have real per-day completion data the week strip
@@ -261,6 +282,15 @@ export default function TodayScreen() {
       <View className="mt-6">
         <InsightCard insight={insight} />
       </View>
+
+      {recoveryCount > 0 ? (
+        <View className="mt-3">
+          <RecoveryCard
+            missedCount={recoveryCount}
+            onPress={() => router.push('/recovery')}
+          />
+        </View>
+      ) : null}
 
       {hasAnyRuns ? (
         <View className="mt-3">
