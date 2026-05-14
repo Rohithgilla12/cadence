@@ -10,6 +10,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { BrandMark } from '@/components/brand';
+import { initAnalytics } from '@/lib/analytics';
 import { AuthProvider, useAuth, configureGoogleSignIn } from '@/lib/auth';
 import { endpoints } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queryKeys';
@@ -21,6 +22,11 @@ const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 if (webClientId) {
   configureGoogleSignIn(webClientId);
 }
+
+// Aptabase boot. Idempotent and safe to call at module load — the SDK
+// only starts the flush timer here, and tracked events accumulate
+// even before the app's UI mounts.
+initAnalytics();
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { status } = useAuth();

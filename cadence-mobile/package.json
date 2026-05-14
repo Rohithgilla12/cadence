@@ -11,6 +11,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
   },
   "dependencies": {
+    "@aptabase/react-native": "^0.4.0",
     "@kingstinct/react-native-healthkit": "^14.0.0",
     "@react-native-firebase/app": "^24.0.0",
     "@react-native-firebase/auth": "^24.0.0",
