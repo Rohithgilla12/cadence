@@ -8,6 +8,7 @@ import type {
   ApiHabitSourceLink,
   ApiInsight,
   ApiPact,
+  ApiRhythm,
   ApiTarget,
   ApiTimeOfDay,
   GetCheckInResponse,
@@ -175,6 +176,11 @@ export const endpoints = {
       `/v1/feed/${itemId}/reactions/toggle`,
       { method: 'POST' },
     ),
+
+  getRhythm: (client: ApiClient) => (windowDays = 56) =>
+    client
+      .request<{ rhythm: ApiRhythm }>(`/v1/reflect/rhythm?windowDays=${windowDays}`)
+      .then((r) => r.rhythm),
 };
 
 // Mirrors the Go putDailySumRequest. All fields optional — client uploads

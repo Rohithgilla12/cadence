@@ -67,6 +67,21 @@ export interface ApiHabit {
   createdAt: string;
 }
 
+export interface ApiRhythmWeekday {
+  weekdayIndex: number; // 0=Mon..6=Sun
+  label: string;
+  completedLogs: number;
+  totalSlots: number;
+  completionRate: number; // 0..1
+}
+
+export interface ApiRhythm {
+  windowDays: number;
+  totalSlots: number;
+  totalCompleted: number;
+  byWeekday: ApiRhythmWeekday[];
+}
+
 export interface ApiFeedItem {
   id: string;
   circleId: string;

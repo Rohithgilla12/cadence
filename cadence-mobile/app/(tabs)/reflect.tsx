@@ -2,6 +2,7 @@ import { IconSparkles } from '@tabler/icons-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { ActivityIndicator, Text, View } from 'react-native';
 
+import { RhythmBars } from '@/components/charts';
 import { InsightCard } from '@/components/insight';
 import { Screen, SectionLabel } from '@/components/layout';
 import { Card } from '@/components/primitives';
@@ -9,8 +10,10 @@ import { endpoints } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queryKeys';
 import { apiClient } from '@/lib/client';
 import { colors } from '@/theme/tokens';
-import type { ApiInsight } from '@/lib/api/types';
+import type { ApiInsight, ApiRhythm } from '@/lib/api/types';
 import type { Insight } from '@/types';
+
+const RHYTHM_WINDOW_DAYS = 56;
 
 // Reflect is the wedge surface (PRD §7, §8). When the engine has found
 // patterns it shows them all here, ranked by effect size. Until then it's
@@ -26,6 +29,11 @@ export default function ReflectScreen() {
     queryKey: queryKeys.insights,
     queryFn: endpoints.listInsights(apiClient),
     staleTime: 60 * 60_000,
+  });
+  const rhythmQuery = useQuery({
+    queryKey: queryKeys.reflectRhythm(RHYTHM_WINDOW_DAYS),
+    queryFn: () => endpoints.getRhythm(apiClient)(RHYTHM_WINDOW_DAYS),
+    staleTime: 10 * 60_000,
   });
 
   const habitCount = habitsQuery.data?.length ?? 0;
@@ -46,7 +54,51 @@ export default function ReflectScreen() {
       ) : (
         <ListeningSection habitCount={habitCount} />
       )}
+
+      {rhythmQuery.data ? (
+        <RhythmSection rhythm={rhythmQuery.data} />
+      ) : null}
     </Screen>
+  );
+}
+
+function RhythmSection({ rhythm }: { rhythm: ApiRhythm }) {
+  const hasData = rhythm.totalSlots > 0;
+  // Cadence convention: 0=Mon..6=Sun. JS getDay is 0=Sun..6=Sat.
+  const todayIndex = (new Date().getDay() + 6) % 7;
+  const overallRate = hasData ? rhythm.totalCompleted / rhythm.totalSlots : 0;
+  const bestDay = hasData
+    ? [...rhythm.byWeekday].sort((a, b) => b.completionRate - a.completionRate)[0]
+    : null;
+
+  return (
+    <>
+      <SectionLabel label="RHYTHM" />
+      <Card padding="md">
+        {!hasData ? (
+          <Text className="text-body text-ink-2 font-serif italic">
+            Your weekly shape appears once a few days of habit history exist.
+          </Text>
+        ) : (
+          <>
+            <View className="flex-row items-baseline justify-between mb-3">
+              <Text className="text-h3 font-serif text-ink">
+                {Math.round(overallRate * 100)}%
+              </Text>
+              <Text className="text-caption text-ink-3">
+                last {Math.round(rhythm.windowDays / 7)} weeks
+              </Text>
+            </View>
+            <RhythmBars byWeekday={rhythm.byWeekday} todayIndex={todayIndex} />
+            {bestDay && bestDay.completionRate > 0 ? (
+              <Text className="text-caption text-ink-3 mt-3 font-serif italic">
+                {bestDay.label}s are when you show up most.
+              </Text>
+            ) : null}
+          </>
+        )}
+      </Card>
+    </>
   );
 }
 

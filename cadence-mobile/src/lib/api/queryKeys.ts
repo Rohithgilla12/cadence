@@ -8,4 +8,5 @@ export const queryKeys = {
   circle: (id: string) => ['circle', id] as const,
   circlePacts: (id: string) => ['circle-pacts', id] as const,
   circleFeed: (id: string) => ['circle-feed', id] as const,
+  reflectRhythm: (windowDays: number) => ['reflect-rhythm', windowDays] as const,
 };
