@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { OptionTile, StepHeader, StepProgressDots } from '@/components/onboarding';
+import { JournalHeader, LineChoice, PageChapter } from '@/components/onboarding';
 import { Button } from '@/components/primitives';
 import { endpoints } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queryKeys';
@@ -36,22 +36,24 @@ export default function IntentScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingTop: insets.top + 24,
+          paddingTop: insets.top + 28,
           paddingHorizontal: screenPaddingX,
-          paddingBottom: 24,
+          paddingBottom: 48,
         }}
       >
-        <StepProgressDots current={1} total={4} />
-        <View className="mt-6">
-          <StepHeader
-            title="Why are you here?"
+        <PageChapter current={1} total={4} />
+        <View className="mt-10">
+          <JournalHeader
+            eyebrow="Why are you here"
+            title="We start with why."
             subtitle="Pick one. You can change this later."
           />
         </View>
-        <View className="mt-8 gap-3">
+        <View className="mt-8 -mx-3">
           {INTENT_OPTIONS.map((opt) => (
-            <OptionTile
+            <LineChoice
               key={opt.id}
+              mode="radio"
               label={opt.label}
               description={opt.description}
               selected={selected === opt.id}

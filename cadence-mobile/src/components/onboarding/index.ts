@@ -1,3 +1,3 @@
-export { StepHeader } from './StepHeader';
-export { StepProgressDots } from './StepProgressDots';
-export { OptionTile } from './OptionTile';
+export { PageChapter } from './PageChapter';
+export { JournalHeader } from './JournalHeader';
+export { LineChoice } from './LineChoice';

@@ -30,7 +30,7 @@ export function InsightCard({ insight }: InsightCardProps) {
   const isListening = insight.kind === 'listening';
 
   return (
-    <View className="bg-moss-bg rounded-xl px-4 py-3.5">
+    <View className="bg-moss-bg border-l-2 border-l-moss-light rounded-r-xl pl-4 pr-4 py-3.5">
       <View className="flex-row items-center gap-1 mb-1.5">
         <IconSparkles size={12} color={colors.moss} strokeWidth={1.5} />
         <Text className="text-eyebrow text-moss uppercase">

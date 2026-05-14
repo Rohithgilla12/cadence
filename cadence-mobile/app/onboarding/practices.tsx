@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { OptionTile, StepHeader, StepProgressDots } from '@/components/onboarding';
+import { JournalHeader, LineChoice, PageChapter } from '@/components/onboarding';
 import { Button } from '@/components/primitives';
 import { endpoints } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queryKeys';
@@ -29,15 +29,13 @@ export default function PracticesScreen() {
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  // Default: every suggestion checked, but capped at 4 to keep the start gentle.
+  // Default: nothing pre-checked. The journal flow asks the user to
+  // make a deliberate choice — pre-checking four lines turns this from
+  // a question into a confirmation, which clashes with PRD §3 voice.
+  // Stays empty until the user taps.
   useEffect(() => {
     if (suggestions.length === 0) return;
-    setSelected((prev) => {
-      if (prev.size > 0) return prev;
-      const defaults = new Set<string>();
-      suggestions.slice(0, 4).forEach((h) => defaults.add(h.id));
-      return defaults;
-    });
+    setSelected((prev) => prev);
   }, [suggestions]);
 
   function toggle(id: string) {
@@ -56,7 +54,6 @@ export default function PracticesScreen() {
     mutationFn: async () => {
       const chosen = suggestions.filter((h) => selected.has(h.id));
       const create = endpoints.createHabit(apiClient);
-      // Serial to avoid hammering the API for a small set; ~150ms each is fine.
       for (const habit of chosen) {
         await create({
           name: habit.name,
@@ -68,7 +65,9 @@ export default function PracticesScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.habits });
-      router.replace('/');
+      // /onboarding/listening is a new route added in the redesign; the
+      // typed-route cache regenerates on dev-server start.
+      router.replace('/onboarding/listening' as unknown as Parameters<typeof router.replace>[0]);
     },
     onError: (err) => {
       Alert.alert('Could not save', err instanceof Error ? err.message : 'Unknown error');
@@ -76,37 +75,39 @@ export default function PracticesScreen() {
   });
 
   if (meQuery.isLoading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: colors.bg }} />
-    );
+    return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
   }
+
+  const subtitle =
+    suggestions.length === 0
+      ? "We'll surface suggestions once your pillars are set. You can add practices from Today."
+      : 'Two or three is plenty for the first week. You can always add more.';
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingTop: insets.top + 24,
+          paddingTop: insets.top + 28,
           paddingHorizontal: screenPaddingX,
-          paddingBottom: 24,
+          paddingBottom: 48,
         }}
       >
-        <StepProgressDots current={4} total={4} />
-        <View className="mt-6">
-          <StepHeader
-            title="Pick a few practices to start."
-            subtitle="Two is plenty for the first week."
+        <PageChapter current={4} total={4} />
+        <View className="mt-10">
+          <JournalHeader
+            eyebrow="What to begin with"
+            title="A few practices."
+            subtitle={subtitle}
           />
         </View>
-        {suggestions.length === 0 ? (
-          <Text className="mt-8 text-body text-ink-2">
-            We'll surface suggestions once your pillars are set. You can add practices manually from Today.
-          </Text>
-        ) : (
-          <View className="mt-8 gap-3">
+
+        {suggestions.length > 0 ? (
+          <View className="mt-8 -mx-3">
             {suggestions.map((habit) => (
-              <OptionTile
+              <LineChoice
                 key={habit.id}
+                mode="check"
                 label={habit.name}
                 description={timeOfDayLabel(habit.timeOfDay)}
                 selected={selected.has(habit.id)}
@@ -114,7 +115,13 @@ export default function PracticesScreen() {
               />
             ))}
           </View>
-        )}
+        ) : null}
+
+        {suggestions.length > 0 && selected.size === 0 ? (
+          <Text className="mt-6 text-body-sm text-ink-3 italic">
+            Or skip — practices are easy to add later.
+          </Text>
+        ) : null}
       </ScrollView>
 
       <View

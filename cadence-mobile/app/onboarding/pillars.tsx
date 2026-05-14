@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { OptionTile, StepHeader, StepProgressDots } from '@/components/onboarding';
+import { JournalHeader, LineChoice, PageChapter } from '@/components/onboarding';
 import { Button } from '@/components/primitives';
 import { endpoints } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queryKeys';
@@ -48,22 +48,24 @@ export default function PillarsScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingTop: insets.top + 24,
+          paddingTop: insets.top + 28,
           paddingHorizontal: screenPaddingX,
-          paddingBottom: 24,
+          paddingBottom: 48,
         }}
       >
-        <StepProgressDots current={2} total={4} />
-        <View className="mt-6">
-          <StepHeader
-            title="What matters to you?"
-            subtitle="Pick the parts of your life Cadence should pay attention to."
+        <PageChapter current={2} total={4} />
+        <View className="mt-10">
+          <JournalHeader
+            eyebrow="What matters"
+            title="The shape of your week."
+            subtitle="Tap the parts of your life Cadence should pay attention to. Pick as many as ring true."
           />
         </View>
-        <View className="mt-8 gap-3">
+        <View className="mt-8 -mx-3">
           {PILLAR_OPTIONS.map((opt) => (
-            <OptionTile
+            <LineChoice
               key={opt.id}
+              mode="check"
               label={opt.label}
               description={opt.description}
               selected={selected.has(opt.id)}

@@ -69,7 +69,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     if (meQuery.isLoading || !meQuery.data) return;
 
     if (!meQuery.data.onboardingCompleted && !inOnboarding) {
-      router.replace('/onboarding/intent');
+      // /onboarding/welcome was added in the onboarding redesign. Expo
+      // Router's typed-routes cache regenerates on dev-server start, so
+      // until then the string isn't in the union — cast through unknown.
+      router.replace('/onboarding/welcome' as unknown as Parameters<typeof router.replace>[0]);
     } else if (meQuery.data.onboardingCompleted && inOnboarding) {
       router.replace('/');
     }
