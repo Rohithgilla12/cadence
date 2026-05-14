@@ -50,6 +50,10 @@ const config: ExpoConfig = {
       "com.apple.developer.healthkit": true,
       "com.apple.developer.healthkit.access": [],
       "com.apple.security.application-groups": ["group.fun.gilla.cadence"],
+      // Push notifications. Static declaration so EAS's capability syncer
+      // enables Push on the App ID and regenerates a provisioning profile
+      // that carries the matching entitlement.
+      "aps-environment": "production",
     },
   },
   android: {
