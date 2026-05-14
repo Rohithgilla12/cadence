@@ -152,10 +152,10 @@ type Payload struct {
 type Category string
 
 const (
-	CategoryTest             Category = "test"
-	CategoryInsightSurfaced  Category = "insight_surfaced"
-	CategoryPactReminder     Category = "pact_reminder"
-	CategoryRecoveryNudge    Category = "recovery_nudge"
+	CategoryTest            Category = "test"
+	CategoryInsightSurfaced Category = "insight_surfaced"
+	CategoryPactReminder    Category = "pact_reminder"
+	CategoryRecoveryNudge   Category = "recovery_nudge"
 )
 
 // TemplateFor returns the user-visible (title, body) for the category.
