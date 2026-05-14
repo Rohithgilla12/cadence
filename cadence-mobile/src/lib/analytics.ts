@@ -1,17 +1,21 @@
-import analytics from '@react-native-firebase/analytics';
 import { Platform } from 'react-native';
 
-// Cadence's analytics surface. Routes through Firebase Analytics
-// (already linked for Firebase Auth). PRD §15 — no PII. Event names
-// are categorical; properties are bounded enums or counts, never
-// free-text user content like habit names.
+// Cadence's analytics surface — currently a no-op stub.
 //
-// All calls are fire-and-forget. The wrapper swallows errors so a
-// transient analytics failure can't break a user action.
+// History: a Firebase Analytics implementation
+// (@react-native-firebase/analytics) was wired here, but its iOS
+// compile fails under our `use_frameworks! :static` linkage and the
+// usual `use_modular_headers!` fix didn't resolve it. Same root cause
+// that pushed FCM → Expo Push earlier. Rather than burn more time on
+// the build-config rabbit hole, we kept the call-site abstraction
+// (every track() invocation across the app still typechecks) and made
+// the SDK side a no-op. Pre-launch we can wire PostHog, Aptabase, or
+// any other pure-RN SDK here — the rest of the codebase doesn't need
+// to change.
+//
+// PRD §15 stays clean either way: nothing leaves the device through
+// this module today.
 
-// Typed event registry. Every event Cadence logs MUST appear here so a
-// rename or removal is a TypeScript-checked refactor — no string
-// drift between call sites and the Firebase console.
 export type AnalyticsEvent =
   | { name: 'onboarding_started' }
   | { name: 'onboarding_intent_picked'; intent: string }
@@ -37,67 +41,32 @@ export type AnalyticsEvent =
   | { name: 'sign_out' }
   | { name: 'account_deleted' };
 
-// Internal: every event payload becomes Firebase's flat-object shape.
-// Splits the discriminator off the name so the rest is the params.
-function toParams(event: AnalyticsEvent): Record<string, unknown> {
-  const { name: _name, ...rest } = event;
-  return { ...rest, platform: Platform.OS };
-}
-
 let enabled = true;
 
-// In development we keep analytics on by default but log to the console
-// too so it's obvious what's being captured. Call setEnabled(false) at
-// startup if a test harness needs full silence.
 export function setEnabled(value: boolean): void {
   enabled = value;
 }
 
+// In __DEV__ we log to the console so the event stream is at least
+// observable during development. In production this is silent.
 export function track(event: AnalyticsEvent): void {
   if (!enabled) return;
-  const params = toParams(event);
   if (__DEV__) {
+    const { name: _name, ...rest } = event;
     // eslint-disable-next-line no-console
-    console.log('[analytics]', event.name, params);
+    console.log('[analytics:noop]', event.name, { ...rest, platform: Platform.OS });
   }
-  // Fire-and-forget. Errors are swallowed — analytics failures should
-  // never block UX.
-  analytics()
-    .logEvent(event.name, params as Record<string, string | number | boolean>)
-    .catch(() => {});
 }
 
-// setUserProperties writes once per session. We deliberately set NO
-// identifier here — PRD §15 forbids cross-app advertising IDs and we
-// don't want Firebase building a stable per-person profile. Only
-// categorical properties (intent, has_pillars) that aid funnel
-// analysis without identifying anyone.
 export interface AnalyticsProfile {
   has_pillars: boolean;
   has_intent: boolean;
 }
 
-export async function setProfile(profile: AnalyticsProfile): Promise<void> {
-  if (!enabled) return;
-  try {
-    await analytics().setUserProperties({
-      has_pillars: profile.has_pillars ? 'true' : 'false',
-      has_intent: profile.has_intent ? 'true' : 'false',
-    });
-  } catch {
-    // Ignore — analytics never blocks UX.
-  }
+export async function setProfile(_profile: AnalyticsProfile): Promise<void> {
+  // No-op until a real analytics provider is wired in.
 }
 
-// signOut wipes any cached user properties so the next user's session
-// doesn't inherit them. Firebase Analytics' setUserId(null) also kills
-// any user-scoped state on its side.
 export async function reset(): Promise<void> {
-  if (!enabled) return;
-  try {
-    await analytics().setUserId(null);
-    await analytics().resetAnalyticsData();
-  } catch {
-    // Ignore.
-  }
+  // No-op.
 }
