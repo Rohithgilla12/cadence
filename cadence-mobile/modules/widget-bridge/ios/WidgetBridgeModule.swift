@@ -18,7 +18,7 @@ public class WidgetBridgeModule: Module {
                 return false
             }
             defaults.set(json, forKey: key)
-            if #available(iOS 14.0, *) {
+            if #available(iOS 15.1, *) {
                 WidgetCenter.shared.reloadAllTimelines()
             }
             return true
@@ -29,14 +29,14 @@ public class WidgetBridgeModule: Module {
                 return false
             }
             defaults.removeObject(forKey: key)
-            if #available(iOS 14.0, *) {
+            if #available(iOS 15.1, *) {
                 WidgetCenter.shared.reloadAllTimelines()
             }
             return true
         }
 
         Function("reloadAllTimelines") { () -> Void in
-            if #available(iOS 14.0, *) {
+            if #available(iOS 15.1, *) {
                 WidgetCenter.shared.reloadAllTimelines()
             }
         }

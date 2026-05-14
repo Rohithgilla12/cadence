@@ -20,6 +20,7 @@ private struct CircularProgress: View {
             Circle()
                 .trim(from: 0, to: progress)
                 .stroke(style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                .foregroundColor(WidgetTheme.moss)
                 .rotationEffect(.degrees(-90))
             VStack(spacing: 0) {
                 Text("\(done)")

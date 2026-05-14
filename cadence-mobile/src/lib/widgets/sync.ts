@@ -78,18 +78,21 @@ export function buildSnapshot(input: SyncWidgetInput): WidgetSnapshot {
 // identical JSON means no work — but we still want to skip the native
 // round-trip when nothing changed.
 function snapshotFingerprint(snapshot: WidgetSnapshot): string {
-  const habits = snapshot.habits
-    .map((h) => `${h.id}:${h.doneToday ? '1' : '0'}:${h.name}`)
-    .join('|');
-  const dots = snapshot.weekDots.map((d) => `${d.weekday}:${d.state}`).join('|');
-  return [
-    snapshot.doneCount,
-    snapshot.totalCount,
-    snapshot.insight.kind,
-    snapshot.insight.renderedText,
-    dots,
-    habits,
-  ].join('//');
+  const fingerprintData = {
+    doneCount: snapshot.doneCount,
+    totalCount: snapshot.totalCount,
+    insight: {
+      kind: snapshot.insight.kind,
+      renderedText: snapshot.insight.renderedText,
+    },
+    weekDots: snapshot.weekDots,
+    habits: snapshot.habits.map((h) => ({
+      id: h.id,
+      doneToday: h.doneToday,
+      name: h.name,
+    })),
+  };
+  return JSON.stringify(fingerprintData);
 }
 
 let lastFingerprint: string | null = null;
@@ -99,12 +102,17 @@ export function syncWidgetData(input: SyncWidgetInput): void {
   const snapshot = buildSnapshot(input);
   const fingerprint = snapshotFingerprint(snapshot);
   if (fingerprint === lastFingerprint) return;
-  lastFingerprint = fingerprint;
-  WidgetBridge.setSnapshot(
-    WIDGET_APP_GROUP,
-    WIDGET_SNAPSHOT_KEY,
-    JSON.stringify(snapshot),
-  );
+  try {
+    WidgetBridge.setSnapshot(
+      WIDGET_APP_GROUP,
+      WIDGET_SNAPSHOT_KEY,
+      JSON.stringify(snapshot),
+    );
+    lastFingerprint = fingerprint;
+  } catch (error) {
+    // Native write failed; don't update lastFingerprint so next sync retries
+    console.error('Failed to sync widget data:', error);
+  }
 }
 
 export function clearWidgetData(): void {
