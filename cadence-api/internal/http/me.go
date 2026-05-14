@@ -47,6 +47,24 @@ type patchMeRequest struct {
 	DisplayName *string   `json:"displayName,omitempty"`
 }
 
+// DeleteMe hard-deletes the calling user. PRD §15 — "delete account and all
+// data with one action." All child rows cascade away via FK constraints.
+// Idempotent: returns 204 even when the row was already gone.
+func DeleteMe(users *user.Repository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		u, ok := auth.UserFromContext(r.Context())
+		if !ok {
+			writeError(w, http.StatusInternalServerError, "no user in context")
+			return
+		}
+		if err := users.DeleteByID(r.Context(), u.ID); err != nil {
+			writeError(w, http.StatusInternalServerError, "delete account")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
 func PatchMe(users *user.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		u, ok := auth.UserFromContext(r.Context())

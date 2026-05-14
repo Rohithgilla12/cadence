@@ -78,6 +78,20 @@ type UpdateProfileInput struct {
 	DisplayName *string
 }
 
+// DeleteByID hard-deletes a user row. All child rows cascade via FK
+// constraints — habits, habit_logs, daily_summaries, check_ins, insights,
+// circle_members, circle_feed_items, pact_progress, reactions all go.
+// Used for the PRD §15 "delete account and all data with one action" flow.
+//
+// Returns nil if the user didn't exist — the desired state ("user not
+// present") is what matters, not whether we did the work this call.
+func (r *Repository) DeleteByID(ctx context.Context, id uuid.UUID) error {
+	if _, err := r.pool.Exec(ctx, `DELETE FROM users WHERE id = $1`, id); err != nil {
+		return fmt.Errorf("delete user: %w", err)
+	}
+	return nil
+}
+
 func (r *Repository) UpdateProfile(ctx context.Context, id uuid.UUID, in UpdateProfileInput) (User, error) {
 	// Partial update via COALESCE so nil fields preserve existing values.
 	row := r.pool.QueryRow(ctx, `

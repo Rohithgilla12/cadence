@@ -50,6 +50,7 @@ func NewRouter(deps Deps) http.Handler {
 		r.Use(auth.RequireAuth(deps.Verifier, deps.Resolver))
 		r.Get("/me", GetMe)
 		r.Patch("/me", PatchMe(deps.Users))
+		r.Delete("/me", DeleteMe(deps.Users))
 
 		habits := newHabitsHandler(deps.Habits, deps.HabitLogs, deps.Feed)
 		r.Get("/habits", habits.list)
