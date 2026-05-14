@@ -1,19 +1,22 @@
-import { IconSparkles } from '@tabler/icons-react-native';
+import { IconFlame, IconSparkles } from '@tabler/icons-react-native';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
-import { RhythmBars } from '@/components/charts';
+import { ConsistencyHeatmap, RhythmBars } from '@/components/charts';
 import { InsightCard } from '@/components/insight';
 import { Screen, SectionLabel } from '@/components/layout';
 import { Card } from '@/components/primitives';
+import { iconFor } from '@/lib/mockData';
 import { endpoints } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queryKeys';
 import { apiClient } from '@/lib/client';
 import { colors } from '@/theme/tokens';
-import type { ApiInsight, ApiRhythm } from '@/lib/api/types';
+import type { ApiHabit, ApiHeatmap, ApiInsight, ApiRhythm } from '@/lib/api/types';
 import type { Insight } from '@/types';
 
 const RHYTHM_WINDOW_DAYS = 56;
+const HEATMAP_WINDOW_DAYS = 63; // 9 weeks for a clean 9-col grid
 
 // Reflect is the wedge surface (PRD §7, §8). When the engine has found
 // patterns it shows them all here, ranked by effect size. Until then it's
@@ -35,10 +38,23 @@ export default function ReflectScreen() {
     queryFn: () => endpoints.getRhythm(apiClient)(RHYTHM_WINDOW_DAYS),
     staleTime: 10 * 60_000,
   });
+  const heatmapQuery = useQuery({
+    queryKey: queryKeys.reflectHeatmap(HEATMAP_WINDOW_DAYS),
+    queryFn: () => endpoints.getHeatmap(apiClient)(HEATMAP_WINDOW_DAYS),
+    staleTime: 10 * 60_000,
+  });
 
   const habitCount = habitsQuery.data?.length ?? 0;
   const insights = insightsQuery.data ?? [];
   const hasPatterns = insights.length > 0;
+  const streakHabits = useMemo(
+    () =>
+      (habitsQuery.data ?? [])
+        .filter((h) => h.streak > 0)
+        .sort((a, b) => b.streak - a.streak)
+        .slice(0, 5),
+    [habitsQuery.data],
+  );
 
   return (
     <Screen scroll>
@@ -58,7 +74,71 @@ export default function ReflectScreen() {
       {rhythmQuery.data ? (
         <RhythmSection rhythm={rhythmQuery.data} />
       ) : null}
+
+      {heatmapQuery.data ? (
+        <HeatmapSection heatmap={heatmapQuery.data} />
+      ) : null}
+
+      {streakHabits.length > 0 ? (
+        <StreaksSection habits={streakHabits} />
+      ) : null}
     </Screen>
+  );
+}
+
+function HeatmapSection({ heatmap }: { heatmap: ApiHeatmap }) {
+  const hasData = heatmap.days.some((d) => d.totalSlots > 0);
+  return (
+    <>
+      <SectionLabel label="CONSISTENCY" />
+      <Card padding="md">
+        {!hasData ? (
+          <Text className="text-body text-ink-2 font-serif italic">
+            The calendar fills in as you check practices off. Quiet days are part of it.
+          </Text>
+        ) : (
+          <>
+            <Text className="text-caption text-ink-3 mb-3">
+              Last {Math.round(heatmap.windowDays / 7)} weeks
+            </Text>
+            <ConsistencyHeatmap days={heatmap.days} />
+          </>
+        )}
+      </Card>
+    </>
+  );
+}
+
+function StreaksSection({ habits }: { habits: ApiHabit[] }) {
+  return (
+    <>
+      <SectionLabel label="STREAKS" />
+      <View className="gap-2">
+        {habits.map((habit) => {
+          const HabitIcon = iconFor[habit.icon];
+          return (
+            <Card key={habit.id} padding="md">
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center gap-3 flex-1">
+                  {HabitIcon ? (
+                    <HabitIcon size={16} color={colors.moss} strokeWidth={1.5} />
+                  ) : null}
+                  <Text className="text-body text-ink font-medium flex-1">
+                    {habit.name}
+                  </Text>
+                </View>
+                <View className="flex-row items-center gap-1">
+                  <IconFlame size={14} color={colors.mossLight} strokeWidth={1.5} />
+                  <Text className="text-body text-ink-2">
+                    {habit.streak} {habit.streak === 1 ? 'day' : 'days'}
+                  </Text>
+                </View>
+              </View>
+            </Card>
+          );
+        })}
+      </View>
+    </>
   );
 }
 

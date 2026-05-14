@@ -9,4 +9,5 @@ export const queryKeys = {
   circlePacts: (id: string) => ['circle-pacts', id] as const,
   circleFeed: (id: string) => ['circle-feed', id] as const,
   reflectRhythm: (windowDays: number) => ['reflect-rhythm', windowDays] as const,
+  reflectHeatmap: (windowDays: number) => ['reflect-heatmap', windowDays] as const,
 };

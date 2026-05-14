@@ -8,6 +8,7 @@ import type {
   ApiHabitSourceLink,
   ApiInsight,
   ApiPact,
+  ApiHeatmap,
   ApiRhythm,
   ApiTarget,
   ApiTimeOfDay,
@@ -181,6 +182,11 @@ export const endpoints = {
     client
       .request<{ rhythm: ApiRhythm }>(`/v1/reflect/rhythm?windowDays=${windowDays}`)
       .then((r) => r.rhythm),
+
+  getHeatmap: (client: ApiClient) => (windowDays = 60) =>
+    client
+      .request<{ heatmap: ApiHeatmap }>(`/v1/reflect/heatmap?windowDays=${windowDays}`)
+      .then((r) => r.heatmap),
 };
 
 // Mirrors the Go putDailySumRequest. All fields optional — client uploads

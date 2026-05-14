@@ -82,6 +82,18 @@ export interface ApiRhythm {
   byWeekday: ApiRhythmWeekday[];
 }
 
+export interface ApiHeatmapDay {
+  date: string; // YYYY-MM-DD
+  totalSlots: number;
+  completedLogs: number;
+  completionRate: number; // 0..1
+}
+
+export interface ApiHeatmap {
+  windowDays: number;
+  days: ApiHeatmapDay[]; // oldest → newest
+}
+
 export interface ApiFeedItem {
   id: string;
   circleId: string;
