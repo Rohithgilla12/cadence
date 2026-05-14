@@ -27,9 +27,15 @@ import {
   todayWeekdayIndex as currentWeekdayIndex,
 } from '@/lib/running';
 import { colors } from '@/theme/tokens';
-import { mockWeek } from '@/lib/mockData';
+import { buildWeekDays } from '@/lib/week';
 import type { ApiHabit } from '@/lib/api/types';
 import type { Habit, Insight } from '@/types';
+
+// 14 days covers this week plus last week so the strip stays accurate
+// when the heatmap is computed on a 7-day rolling basis. Cheap enough
+// to fetch on every Today open; cached briefly so back-and-forth tab
+// switches don't re-fire it.
+const WEEK_HEATMAP_WINDOW_DAYS = 14;
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -136,6 +142,20 @@ export default function TodayScreen() {
     queryFn: getStatus,
     staleTime: 60_000,
   });
+
+  // Per-day completion for the current week strip. Heatmap is the same
+  // surface Reflect uses; we just take a smaller window. 5-minute stale
+  // window so back-and-forth tab switches don't re-fire it.
+  const weekHeatmapQuery = useQuery({
+    queryKey: queryKeys.reflectHeatmap(WEEK_HEATMAP_WINDOW_DAYS),
+    queryFn: () => endpoints.getHeatmap(apiClient)(WEEK_HEATMAP_WINDOW_DAYS),
+    staleTime: 5 * 60_000,
+  });
+
+  const weekDays = useMemo(
+    () => buildWeekDays(new Date(), weekHeatmapQuery.data?.days),
+    [weekHeatmapQuery.data, todayIso],
+  );
 
   const dailySummaryQuery = useQuery({
     queryKey: ['health-summary', todayIso],
@@ -284,7 +304,7 @@ export default function TodayScreen() {
       </View>
 
       <View className="mt-6">
-        <WeekStrip days={mockWeek} />
+        <WeekStrip days={weekDays} />
       </View>
 
       <View className="mt-6">

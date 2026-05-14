@@ -4,18 +4,7 @@ import {
   IconBook2,
   IconWalk,
 } from '@tabler/icons-react-native';
-import type { DayDot, Insight } from '@/types';
-
-// Week strip — today is Wednesday (index 2). M was a done day, T was quiet.
-export const mockWeek: DayDot[] = [
-  { date: '2026-05-11', weekday: 'M', state: 'past-done' },
-  { date: '2026-05-12', weekday: 'T', state: 'past-quiet' },
-  { date: '2026-05-13', weekday: 'W', state: 'today' },
-  { date: '2026-05-14', weekday: 'T', state: 'future' },
-  { date: '2026-05-15', weekday: 'F', state: 'future' },
-  { date: '2026-05-16', weekday: 'S', state: 'future' },
-  { date: '2026-05-17', weekday: 'S', state: 'future' },
-];
+import type { Insight } from '@/types';
 
 export const mockInsight: Insight = {
   kind: 'pattern',
