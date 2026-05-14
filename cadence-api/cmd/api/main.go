@@ -17,6 +17,7 @@ import (
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/config"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/dailysum"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/db"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/feed"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/habit"
 	cadencehttp "github.com/Rohithgilla12/cadence/cadence-api/internal/http"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/insight"
@@ -64,6 +65,7 @@ func main() {
 	insightEngine := insight.NewEngine(pool, insightRepo)
 	circleRepo := circle.NewRepository(pool)
 	pactRepo := pact.NewRepository(pool)
+	feedRepo := feed.NewRepository(pool)
 
 	server := &http.Server{
 		Addr: fmt.Sprintf(":%d", cfg.Port),
@@ -80,6 +82,7 @@ func main() {
 			Insights:       insightRepo,
 			Circles:        circleRepo,
 			Pacts:          pactRepo,
+			Feed:           feedRepo,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}

@@ -28,6 +28,7 @@ type CreateInput struct {
 	TimeOfDay    TimeOfDay
 	Target       *Target
 	SourceLink   *SourceLink
+	SharedWith   []uuid.UUID
 	TrackContext bool
 }
 
@@ -50,11 +51,15 @@ func (r *Repository) Create(ctx context.Context, in CreateInput) (Habit, error) 
 	if err != nil {
 		return Habit{}, fmt.Errorf("marshal source_link: %w", err)
 	}
+	shared := in.SharedWith
+	if shared == nil {
+		shared = []uuid.UUID{}
+	}
 	row := r.pool.QueryRow(ctx, `
-		INSERT INTO habits (user_id, name, icon, time_of_day, track_context, target, source_link)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO habits (user_id, name, icon, time_of_day, track_context, target, source_link, shared_with)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING `+habitColumns,
-		in.UserID, in.Name, icon, string(timeOfDay), in.TrackContext, targetJSON, sourceLinkJSON)
+		in.UserID, in.Name, icon, string(timeOfDay), in.TrackContext, targetJSON, sourceLinkJSON, shared)
 	return scanHabit(row)
 }
 
@@ -72,6 +77,9 @@ type UpdateInput struct {
 	ClearTarget     bool
 	ClearSourceLink bool
 	TrackContext    *bool
+	// SharedWith is fully replaced when non-nil — pass nil to leave alone,
+	// pass an empty slice to clear all sharing.
+	SharedWith *[]uuid.UUID
 }
 
 func (r *Repository) Update(ctx context.Context, in UpdateInput) (Habit, error) {
@@ -112,6 +120,9 @@ func (r *Repository) Update(ctx context.Context, in UpdateInput) (Habit, error) 
 			return Habit{}, fmt.Errorf("marshal source_link: %w", err)
 		}
 		next("source_link", b)
+	}
+	if in.SharedWith != nil {
+		next("shared_with", *in.SharedWith)
 	}
 	if len(set) == 0 {
 		return r.GetByID(ctx, in.ID, in.OwnerID)

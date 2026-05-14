@@ -8,6 +8,7 @@ import (
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/checkin"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/circle"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/dailysum"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/feed"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/habit"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/insight"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/pact"
@@ -30,6 +31,7 @@ type Deps struct {
 	Insights       *insight.Repository
 	Circles        *circle.Repository
 	Pacts          *pact.Repository
+	Feed           *feed.Repository
 }
 
 func NewRouter(deps Deps) http.Handler {
@@ -47,7 +49,7 @@ func NewRouter(deps Deps) http.Handler {
 		r.Get("/me", GetMe)
 		r.Patch("/me", PatchMe(deps.Users))
 
-		habits := newHabitsHandler(deps.Habits, deps.HabitLogs)
+		habits := newHabitsHandler(deps.Habits, deps.HabitLogs, deps.Feed)
 		r.Get("/habits", habits.list)
 		r.Post("/habits", habits.create)
 		r.Patch("/habits/{id}", habits.update)
@@ -81,6 +83,12 @@ func NewRouter(deps Deps) http.Handler {
 			r.Post("/circles/{id}/pacts", pacts.create)
 			r.Get("/circles/{id}/pacts", pacts.listForCircle)
 			r.Post("/pacts/{id}/complete", pacts.complete)
+		}
+
+		if deps.Feed != nil {
+			feedH := newFeedHandler(deps.Feed)
+			r.Get("/circles/{id}/feed", feedH.listForCircle)
+			r.Post("/feed/{id}/reactions/toggle", feedH.toggleReaction)
 		}
 	})
 
