@@ -11,6 +11,7 @@ import (
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/feed"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/habit"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/insight"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/notify"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/pact"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/reflect"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/user"
@@ -34,6 +35,8 @@ type Deps struct {
 	Pacts          *pact.Repository
 	Feed           *feed.Repository
 	Reflect        *reflect.Repository
+	Devices        *notify.Repository
+	PushSender     *notify.Sender
 }
 
 func NewRouter(deps Deps) http.Handler {
@@ -99,6 +102,13 @@ func NewRouter(deps Deps) http.Handler {
 			reflectH := newReflectHandler(deps.Reflect)
 			r.Get("/reflect/rhythm", reflectH.rhythm)
 			r.Get("/reflect/heatmap", reflectH.heatmap)
+		}
+
+		if deps.Devices != nil {
+			devicesH := newDevicesHandler(deps.Devices, deps.PushSender)
+			r.Put("/me/devices", devicesH.register)
+			r.Delete("/me/devices/{token}", devicesH.unregister)
+			r.Post("/me/devices/test", devicesH.test)
 		}
 	})
 

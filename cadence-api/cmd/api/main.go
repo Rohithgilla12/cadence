@@ -21,6 +21,7 @@ import (
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/habit"
 	cadencehttp "github.com/Rohithgilla12/cadence/cadence-api/internal/http"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/insight"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/notify"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/pact"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/reflect"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/user"
@@ -68,6 +69,16 @@ func main() {
 	pactRepo := pact.NewRepository(pool)
 	feedRepo := feed.NewRepository(pool)
 	reflectRepo := reflect.NewRepository(pool)
+	devicesRepo := notify.NewRepository(pool)
+	// Push sender reuses the existing Firebase service account credentials.
+	// When the file isn't configured (local dev), NewSender returns a
+	// disabled instance that still services token registration; the test
+	// endpoint then 503s. Production has the same JSON mounted in.
+	pushSender, err := notify.NewSender(ctx, devicesRepo, cfg.FirebaseCredentials)
+	if err != nil {
+		logger.Error("push sender", "err", err)
+		os.Exit(1)
+	}
 
 	server := &http.Server{
 		Addr: fmt.Sprintf(":%d", cfg.Port),
@@ -86,6 +97,8 @@ func main() {
 			Pacts:          pactRepo,
 			Feed:           feedRepo,
 			Reflect:        reflectRepo,
+			Devices:        devicesRepo,
+			PushSender:     pushSender,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
