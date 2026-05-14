@@ -1,14 +1,21 @@
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import messaging from '@react-native-firebase/messaging';
 
 import { endpoints } from '@/lib/api';
 import { apiClient } from '@/lib/client';
 
-// Wrapper around @react-native-firebase/messaging that handles permission
-// + token registration with our server. Designed to be safe to call on
-// every sign-in: requestPermission is idempotent in iOS (returns the
-// current grant if the user already decided) and our server upsert keys
-// on the token itself, not on user, so re-registers are no-ops.
+// Foreground behavior — when a push lands while Cadence is open we still
+// show the banner. Calm by default: no badge, no sound (we let the OS
+// quiet-hours / focus-mode call those).
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 export interface PushRegisterResult {
   granted: boolean;
@@ -16,57 +23,71 @@ export interface PushRegisterResult {
 }
 
 // requestAndRegister asks the OS for notification permission, fetches the
-// FCM token, and posts it to /v1/me/devices. Returns the result so the
-// caller can decide whether to surface "notifications are off" UI.
+// Expo push token (an "ExponentPushToken[…]" string the Expo Push Service
+// accepts), and posts it to our server. Safe to call on every signed-in
+// launch — the OS only shows the prompt the first time, server upserts by
+// token so re-registers are idempotent.
 //
-// Designed to never throw — a transient failure (no network, FCM offline)
-// should not block the sign-in flow. The caller can retry on a later
-// app-foreground event.
+// Never throws — a transient failure shouldn't block the sign-in flow.
 export async function requestAndRegister(): Promise<PushRegisterResult> {
-  if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+  if (!Device.isDevice) {
+    // Simulator / web — push tokens aren't issued.
     return { granted: false, token: null };
   }
+
+  if (Platform.OS === 'android') {
+    try {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'Default',
+        importance: Notifications.AndroidImportance.HIGH,
+      });
+    } catch {
+      // Best-effort.
+    }
+  }
+
   let granted = false;
   try {
-    const status = await messaging().requestPermission();
-    granted =
-      status === messaging.AuthorizationStatus.AUTHORIZED ||
-      status === messaging.AuthorizationStatus.PROVISIONAL;
+    const existing = await Notifications.getPermissionsAsync();
+    let finalStatus = existing.status;
+    if (existing.status !== 'granted') {
+      const requested = await Notifications.requestPermissionsAsync();
+      finalStatus = requested.status;
+    }
+    granted = finalStatus === 'granted';
   } catch {
     return { granted: false, token: null };
   }
-  if (!granted) {
-    return { granted: false, token: null };
-  }
+
+  if (!granted) return { granted: false, token: null };
+
   let token: string | null = null;
   try {
-    token = await messaging().getToken();
+    const result = await Notifications.getExpoPushTokenAsync();
+    token = result.data;
   } catch {
     return { granted: true, token: null };
   }
-  if (!token) {
-    return { granted: true, token: null };
-  }
+  if (!token) return { granted: true, token: null };
+
   try {
     await endpoints.registerDevice(apiClient)({
       token,
       platform: Platform.OS as 'ios' | 'android',
     });
   } catch {
-    // Server-side register failed — keep going. Local FCM listener still
-    // works; we just won't get server-initiated sends until the next
-    // re-register attempt.
+    // Server-side register failed — keep going. Re-try happens next launch.
   }
   return { granted: true, token };
 }
 
-// unregister is best-effort cleanup on sign-out. Drops the token from
-// the server table so a re-signed-in account doesn't receive
-// notifications meant for the previous user.
+// unregister is best-effort cleanup on sign-out. Drops the current device's
+// Expo push token from the server table.
 export async function unregister(): Promise<void> {
-  if (Platform.OS !== 'ios' && Platform.OS !== 'android') return;
+  if (!Device.isDevice) return;
   try {
-    const token = await messaging().getToken();
+    const result = await Notifications.getExpoPushTokenAsync();
+    const token = result.data;
     if (token) {
       await endpoints.unregisterDevice(apiClient)(token).catch(() => {});
     }
@@ -75,8 +96,6 @@ export async function unregister(): Promise<void> {
   }
 }
 
-// sendTest hits the dev endpoint so the user can verify push end-to-end
-// from the You tab.
 export async function sendTest(): Promise<{ sent: number; pruned: number }> {
   return endpoints.sendTestPush(apiClient)();
 }
