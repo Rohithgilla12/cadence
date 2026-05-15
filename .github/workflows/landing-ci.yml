@@ -1,0 +1,91 @@
+name: landing-ci
+
+# Continuous deploy for the static landing site.
+#
+# - On every push to main that touches landing/**: tar the landing tree,
+#   stream it over SSH to the VPS, where a forced-command script
+#   (~/bin/cadence-landing-deploy.sh) extracts → rsyncs into
+#   /opt/cadence/landing → force-recreates the cadence-landing
+#   container so its single-file bind mount of nginx.conf picks up the
+#   new inode (Docker quirk: in-place reload reads the stale inode).
+#
+# - workflow_dispatch enabled for manual re-syncs (e.g. when the well-
+#   known files change but no landing source did, or when the container
+#   was wiped and needs a fresh seed).
+#
+# Why a separate key + workflow from api-ci: the api-ci forced command
+# is pinned to `docker compose pull + up cadence-api`. Reusing it for
+# landing would either (a) require relaxing it to take args (a
+# regression in safety) or (b) restart the API on every landing change
+# (silly). So this workflow ships its own dedicated key —
+# VPS_LANDING_SSH_PRIVATE_KEY — wired to the landing redeploy script.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'landing/**'
+      - '.github/workflows/landing-ci.yml'
+  workflow_dispatch: {}
+
+concurrency:
+  group: landing-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: deploy
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://cadence.gilla.fun
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.VPS_LANDING_SSH_PRIVATE_KEY }}
+          HOST_KEY: ${{ secrets.VPS_HOST_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/cadence-landing-deploy
+          chmod 600 ~/.ssh/cadence-landing-deploy
+          printf '%s\n' "$HOST_KEY" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Stream landing tree → VPS deploy script
+        # The remote sshd substitutes its forced command for whatever we
+        # send, so no command needs to be passed here. The script reads
+        # the tarball off stdin. -C disables compression because gzip
+        # is already doing the work; double-compressing only spends CPU.
+        run: |
+          tar -czf - -C landing . | ssh \
+            -i ~/.ssh/cadence-landing-deploy \
+            -o BatchMode=yes \
+            -o ServerAliveInterval=15 \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}"
+
+      - name: Smoke test
+        # Hit one path per nginx route family (root, /circle/join/<token>
+        # fallback, AASA) so a regression in any of the new locations
+        # surfaces as a failed deploy, not a silently broken invite link.
+        run: |
+          set -e
+          probe() {
+            local url="$1"; local label="$2"
+            for attempt in 1 2 3 4 5; do
+              code=$(curl -sS -o /dev/null --max-time 8 -w '%{http_code}' "$url" || echo "000")
+              if [ "$code" = "200" ]; then
+                echo "::notice::$label → 200 (attempt $attempt)"
+                return 0
+              fi
+              echo "$label → $code, retrying in 5s..."
+              sleep 5
+            done
+            echo "::error::$label never returned 200"
+            return 1
+          }
+          probe https://cadence.gilla.fun/                                   "root"
+          probe https://cadence.gilla.fun/circle/join/aaaaaaaaaaaaaaaaaaaa   "invite fallback"
+          probe https://cadence.gilla.fun/.well-known/apple-app-site-association "AASA"
