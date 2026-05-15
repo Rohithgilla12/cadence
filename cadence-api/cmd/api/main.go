@@ -24,6 +24,7 @@ import (
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/notify"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/pact"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/reflect"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/strava"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/user"
 )
 
@@ -80,25 +81,48 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Strava is optional. When the four STRAVA_* env vars are missing
+	// the service stays nil and the router skips wiring the routes —
+	// the rest of the API still boots in dev without Strava credentials.
+	var stravaService *strava.Service
+	if cfg.StravaConfigured() {
+		cipher, err := strava.NewCipher(cfg.StravaTokenEncryptionKey)
+		if err != nil {
+			logger.Error("strava cipher", "err", err)
+			os.Exit(1)
+		}
+		stravaClient := strava.NewClient(cfg.StravaClientID, cfg.StravaClientSecret)
+		stravaRepo := strava.NewRepository(pool, cipher)
+		stravaService = strava.NewService(stravaClient, stravaRepo, cfg.PublicBaseURL)
+		// AutodetectFunc is wired in a follow-up commit once the habit
+		// package exposes a Strava-aware matcher. For now activities
+		// persist; habit logs don't fire from Strava events yet.
+		logger.Info("strava enabled", "callback", cfg.PublicBaseURL+"/v1/strava/callback")
+	} else {
+		logger.Info("strava disabled — STRAVA_* env vars not configured")
+	}
+
 	server := &http.Server{
 		Addr: fmt.Sprintf(":%d", cfg.Port),
 		Handler: cadencehttp.NewRouter(cadencehttp.Deps{
-			Pool:           pool,
-			Verifier:       verifier,
-			Resolver:       resolver,
-			Users:          repo,
-			Habits:         habitRepo,
-			HabitLogs:      habitLogRepo,
-			CheckIns:       checkInRepo,
-			DailySummaries: dailySumRepo,
-			InsightEngine:  insightEngine,
-			Insights:       insightRepo,
-			Circles:        circleRepo,
-			Pacts:          pactRepo,
-			Feed:           feedRepo,
-			Reflect:        reflectRepo,
-			Devices:        devicesRepo,
-			PushSender:     pushSender,
+			Pool:                     pool,
+			Verifier:                 verifier,
+			Resolver:                 resolver,
+			Users:                    repo,
+			Habits:                   habitRepo,
+			HabitLogs:                habitLogRepo,
+			CheckIns:                 checkInRepo,
+			DailySummaries:           dailySumRepo,
+			InsightEngine:            insightEngine,
+			Insights:                 insightRepo,
+			Circles:                  circleRepo,
+			Pacts:                    pactRepo,
+			Feed:                     feedRepo,
+			Reflect:                  reflectRepo,
+			Devices:                  devicesRepo,
+			PushSender:               pushSender,
+			Strava:                   stravaService,
+			StravaWebhookVerifyToken: cfg.StravaWebhookVerifyToken,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}

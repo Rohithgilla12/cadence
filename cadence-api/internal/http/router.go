@@ -14,6 +14,7 @@ import (
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/notify"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/pact"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/reflect"
+	"github.com/Rohithgilla12/cadence/cadence-api/internal/strava"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/user"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -37,6 +38,11 @@ type Deps struct {
 	Reflect        *reflect.Repository
 	Devices        *notify.Repository
 	PushSender     *notify.Sender
+
+	// Strava is nilable — when the four STRAVA_* env vars are missing
+	// the router skips wiring the routes and any call returns 503.
+	Strava                   *strava.Service
+	StravaWebhookVerifyToken string
 }
 
 func NewRouter(deps Deps) http.Handler {
@@ -48,6 +54,17 @@ func NewRouter(deps Deps) http.Handler {
 	r.Use(middleware.Timeout(30 * time.Second))
 
 	r.Get("/health", Health(deps.Pool))
+
+	// Strava OAuth callback + webhook live OUTSIDE the /v1 auth-gated
+	// route group — Strava and the user's browser can't carry our
+	// Bearer token, and the state token / verify token / event body
+	// schema do the binding instead.
+	if deps.Strava != nil {
+		stravaH := newStravaHandler(deps.Strava, deps.StravaWebhookVerifyToken)
+		r.Get("/v1/strava/callback", stravaH.callback)
+		r.Get("/v1/webhooks/strava", stravaH.webhookVerify)
+		r.Post("/v1/webhooks/strava", stravaH.webhookEvent)
+	}
 
 	r.Route("/v1", func(r chi.Router) {
 		r.Use(auth.RequireAuth(deps.Verifier, deps.Resolver))
@@ -110,6 +127,13 @@ func NewRouter(deps Deps) http.Handler {
 			r.Put("/me/devices", devicesH.register)
 			r.Delete("/me/devices/{token}", devicesH.unregister)
 			r.Post("/me/devices/test", devicesH.test)
+		}
+
+		if deps.Strava != nil {
+			stravaH := newStravaHandler(deps.Strava, deps.StravaWebhookVerifyToken)
+			r.Post("/strava/connect", stravaH.connect)
+			r.Get("/strava/status", stravaH.status)
+			r.Delete("/strava/connection", stravaH.disconnect)
 		}
 	})
 

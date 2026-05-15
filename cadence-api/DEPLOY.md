@@ -118,6 +118,30 @@ In Portainer → Stacks → **Add stack**:
   | `FIREBASE_CREDENTIALS_HOST_PATH` | `/home/<user>/cadence-secrets/firebase-admin.json` |
   | `CADENCE_IMAGE` | `ghcr.io/rohithgilla12/cadence-api:<sha>` (or `:latest`) |
   | `SENTRY_DSN` | optional, leave blank for now |
+  | `PUBLIC_BASE_URL` | `https://cadence-api.gilla.fun` — base for Strava OAuth callback + webhook (must match Strava app config) |
+  | `STRAVA_CLIENT_ID` | from developers.strava.com → Applications |
+  | `STRAVA_CLIENT_SECRET` | same place; treat as a long-lived secret |
+  | `STRAVA_TOKEN_ENCRYPTION_KEY` | 32 raw bytes hex-encoded (64 chars). Generate with `openssl rand -hex 32`. Encrypts OAuth tokens at rest |
+  | `STRAVA_WEBHOOK_VERIFY_TOKEN` | shared secret used during the one-time webhook subscribe handshake (`openssl rand -hex 16` is plenty) |
+
+  All five Strava variables are required together — missing any one disables the Strava routes (they 503) but the rest of the API still boots. To skip Strava in dev, leave them all unset.
+
+### 4b. Strava one-time setup
+
+1. Register a new app at <https://developers.strava.com/> → **My API Application**.
+2. **Authorization Callback Domain** — only the hostname, no scheme, no path: `cadence-api.gilla.fun`. Strava validates the redirect URI prefix against this value.
+3. Copy `Client ID` + `Client Secret` into the env vars above.
+4. After the API is deployed, subscribe to webhooks via a one-time curl from your laptop:
+
+   ```bash
+   curl -X POST https://www.strava.com/api/v3/push_subscriptions \
+     -F client_id=$STRAVA_CLIENT_ID \
+     -F client_secret=$STRAVA_CLIENT_SECRET \
+     -F callback_url=https://cadence-api.gilla.fun/v1/webhooks/strava \
+     -F verify_token=$STRAVA_WEBHOOK_VERIFY_TOKEN
+   ```
+
+   Strava GETs the callback during this call to verify the token; the handler returns the challenge automatically when `verify_token` matches. One subscription per app — repeating this call after success returns `already exists` (idempotent).
 
 - Click **Deploy the stack**.
 
