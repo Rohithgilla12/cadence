@@ -26,7 +26,25 @@ import (
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/reflect"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/strava"
 	"github.com/Rohithgilla12/cadence/cadence-api/internal/user"
+	"github.com/google/uuid"
 )
+
+// lowerASCII collapses Strava's PascalCase activity types ("Run",
+// "TrailRun", "Walk") to the lowercase slugs the habit source-link
+// model uses ("run", "trailrun", "walk"). Mirror of the helper in
+// internal/strava/repository.go — duplicated here to avoid an import
+// cycle when the bridge lambda runs in main.go.
+func lowerASCII(s string) string {
+	b := make([]byte, len(s))
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= 'A' && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		b[i] = c
+	}
+	return string(b)
+}
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
@@ -94,9 +112,30 @@ func main() {
 		stravaClient := strava.NewClient(cfg.StravaClientID, cfg.StravaClientSecret)
 		stravaRepo := strava.NewRepository(pool, cipher)
 		stravaService = strava.NewService(stravaClient, stravaRepo, cfg.PublicBaseURL)
-		// AutodetectFunc is wired in a follow-up commit once the habit
-		// package exposes a Strava-aware matcher. For now activities
-		// persist; habit logs don't fire from Strava events yet.
+		// Auto-detect: when a webhook event ingests an activity, walk
+		// the user's Strava-linked habits and pre-check matching ones.
+		// The strava package owns the Strava side; habit package owns
+		// the habit side. This lambda is the bridge so neither package
+		// has to import the other (which would create a cycle).
+		autodetector := habit.NewStravaAutodetector(habitRepo, habitLogRepo)
+		stravaService.SetAutodetect(func(ctx context.Context, userID uuid.UUID, a *strava.DetailedActivity) {
+			if a == nil {
+				return
+			}
+			count, err := autodetector.Detect(ctx, userID, habit.StravaActivity{
+				Type:           lowerASCII(a.Type),
+				StartedAt:      a.StartDate,
+				ElapsedSeconds: a.ElapsedTime,
+			})
+			if err != nil {
+				logger.Warn("strava autodetect", "user_id", userID, "activity_id", a.ID, "err", err)
+				return
+			}
+			if count > 0 {
+				logger.Info("strava autodetect ticked habits",
+					"user_id", userID, "activity_id", a.ID, "habits_ticked", count)
+			}
+		})
 		logger.Info("strava enabled", "callback", cfg.PublicBaseURL+"/v1/strava/callback")
 	} else {
 		logger.Info("strava disabled — STRAVA_* env vars not configured")
