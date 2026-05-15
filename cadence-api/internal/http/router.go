@@ -55,18 +55,21 @@ func NewRouter(deps Deps) http.Handler {
 
 	r.Get("/health", Health(deps.Pool))
 
-	// Strava OAuth callback + webhook live OUTSIDE the /v1 auth-gated
-	// route group — Strava and the user's browser can't carry our
-	// Bearer token, and the state token / verify token / event body
-	// schema do the binding instead.
-	if deps.Strava != nil {
-		stravaH := newStravaHandler(deps.Strava, deps.StravaWebhookVerifyToken)
-		r.Get("/v1/strava/callback", stravaH.callback)
-		r.Get("/v1/webhooks/strava", stravaH.webhookVerify)
-		r.Post("/v1/webhooks/strava", stravaH.webhookEvent)
-	}
-
 	r.Route("/v1", func(r chi.Router) {
+		// Strava OAuth callback + webhook live INSIDE /v1 but BEFORE the
+		// auth middleware is applied — Strava and the user's browser
+		// can't carry our Bearer token, and the state token / verify
+		// token / event body schema do the binding instead. Registering
+		// these on the parent router with chi.Get("/v1/...") instead of
+		// here triggers chi's radix tree to route them through the /v1
+		// sub-router anyway (prefix conflict), which then auths them.
+		if deps.Strava != nil {
+			stravaPub := newStravaHandler(deps.Strava, deps.StravaWebhookVerifyToken)
+			r.Get("/strava/callback", stravaPub.callback)
+			r.Get("/webhooks/strava", stravaPub.webhookVerify)
+			r.Post("/webhooks/strava", stravaPub.webhookEvent)
+		}
+
 		r.Use(auth.RequireAuth(deps.Verifier, deps.Resolver))
 		r.Get("/me", GetMe)
 		r.Patch("/me", PatchMe(deps.Users))
