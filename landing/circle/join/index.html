@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>You've been invited · Cadence</title>
+    <meta
+      name="description"
+      content="Someone invited you to a Cadence circle. Get the app on TestFlight, then paste the invite code to join."
+    />
+    <meta name="robots" content="noindex" />
+    <link rel="icon" type="image/svg+xml" href="/brand/mark-on-cream.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500&family=JetBrains+Mono:wght@500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/legal.css" />
+    <style>
+      /* Invite-specific surfaces. Keeps to the design system tokens
+         already declared in legal.css — no new colors. */
+      .token-card {
+        background: var(--card);
+        border: 1px solid var(--hairline);
+        border-radius: 18px;
+        padding: 22px 24px;
+        margin: 32px 0 16px;
+      }
+      .token-card .label {
+        font-family: "Inter", sans-serif;
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--moss);
+        margin-bottom: 12px;
+      }
+      .token-card .token {
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: clamp(18px, 3.6vw, 22px);
+        letter-spacing: 0.5px;
+        color: var(--ink);
+        word-break: break-all;
+        line-height: 1.4;
+        margin: 0 0 16px;
+      }
+      .token-card .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-family: "Inter", sans-serif;
+        font-size: 15px;
+        font-weight: 500;
+        padding: 11px 20px;
+        border-radius: 999px;
+        text-decoration: none;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: opacity 0.18s ease, background 0.18s ease;
+      }
+      .btn-primary {
+        background: var(--moss);
+        color: #ffffff;
+      }
+      .btn-primary:hover { opacity: 0.92; }
+      .btn-secondary {
+        background: transparent;
+        color: var(--ink);
+        border-color: var(--hairline-2);
+      }
+      .btn-secondary:hover { background: var(--paper-2); }
+      .copied-flash {
+        font-family: "Inter", sans-serif;
+        font-size: 13px;
+        color: var(--moss);
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
+      .copied-flash.is-visible { opacity: 1; }
+
+      .ctas {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin: 24px 0 8px;
+      }
+
+      .help {
+        margin-top: 32px;
+        padding: 22px 24px;
+        background: var(--paper-2);
+        border-radius: 18px;
+      }
+      .help h3 {
+        font-family: "Inter", sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        color: var(--ink-2);
+        margin: 0 0 12px;
+      }
+      .help ol {
+        margin: 0;
+        padding-left: 20px;
+        color: var(--ink-2);
+        font-size: 15px;
+        line-height: 1.6;
+      }
+      .help ol li { margin: 6px 0; }
+      .help ol li strong { color: var(--ink); font-weight: 500; }
+
+      .invalid {
+        background: var(--paper-2);
+        border-radius: 18px;
+        padding: 22px 24px;
+        margin: 32px 0;
+      }
+      .invalid p {
+        margin: 0;
+        color: var(--ink-2);
+        font-family: "Lora", serif;
+        font-style: italic;
+        font-size: 17px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <a class="mark" href="/" aria-label="Back to Cadence">
+        <svg width="32" height="32" viewBox="0 0 240 240" aria-hidden="true">
+          <circle cx="120" cy="120" r="72" stroke="#4a5a40" stroke-width="6" fill="none" />
+          <circle cx="120" cy="120" r="52" stroke="#4a5a40" stroke-width="6" fill="none" />
+          <circle cx="120" cy="120" r="32" fill="#4a5a40" />
+        </svg>
+        <span class="wordmark">Cadence</span>
+      </a>
+
+      <div class="eyebrow">Circle invite</div>
+      <h1 class="page-title">You've been invited.</h1>
+      <p class="subtitle">
+        A friend wants you in their Cadence circle. Two or three people, a shared
+        weekly pact, no leaderboards.
+      </p>
+
+      <!-- The valid path: token present and well-formed. JS unhides this. -->
+      <div id="valid-state" hidden>
+        <div class="token-card" role="region" aria-label="Your invite code">
+          <div class="label">Your invite code</div>
+          <p class="token" id="token-display"></p>
+          <div class="actions">
+            <button type="button" class="btn btn-secondary" id="copy-btn">
+              Copy code
+            </button>
+            <span class="copied-flash" id="copied-flash" aria-live="polite">
+              Copied
+            </span>
+          </div>
+        </div>
+
+        <div class="ctas">
+          <a
+            class="btn btn-primary"
+            href="https://testflight.apple.com/join/XQkb4qre"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Get Cadence on TestFlight
+            <span aria-hidden="true">→</span>
+          </a>
+          <a class="btn btn-secondary" href="#" id="open-app-btn">
+            Already installed? Open Cadence
+          </a>
+        </div>
+
+        <div class="help">
+          <h3>How to join</h3>
+          <ol>
+            <li><strong>Install Cadence</strong> via the TestFlight link above (iOS only for now).</li>
+            <li>Open the app and sign in.</li>
+            <li>From <strong>Circles</strong>, tap <strong>Join a circle</strong>, paste the code, and you're in.</li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- The fallback: no token in URL, or token doesn't match the
+           expected shape. Shows generic guidance instead of pretending. -->
+      <div id="invalid-state" class="invalid" hidden>
+        <p>
+          This link is missing an invite code. Ask the friend who sent it to
+          re-share the link from their circle.
+        </p>
+      </div>
+
+      <footer>
+        <span>Cadence · iOS · beta</span>
+        <span class="footer-links">
+          <a href="/">Home</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+          <a href="mailto:support@cadence.gilla.fun">Support</a>
+        </span>
+      </footer>
+    </main>
+
+    <script>
+      // Invite tokens are 20 chars, lowercase alphanumeric (matches the
+      // server-side generator). We do a shape check rather than trusting
+      // anything in the URL — the page is the public fallback for users
+      // without the app installed, so a bogus path shouldn't render a
+      // confidence-projecting invite UI.
+      (function () {
+        var TOKEN_RE = /^[a-z0-9]{20}$/;
+        var path = window.location.pathname.replace(/\/+$/, "");
+        var parts = path.split("/").filter(Boolean);
+        var token = parts.length >= 3 && parts[0] === "circle" && parts[1] === "join"
+          ? parts[2]
+          : "";
+
+        if (TOKEN_RE.test(token)) {
+          document.getElementById("token-display").textContent = token;
+          document.getElementById("valid-state").hidden = false;
+          document.title = "Join a Cadence circle";
+
+          // "Open Cadence" button uses a query-string variant of the deep
+          // link. The current TestFlight build registers `cadence://` as
+          // the URL scheme but only knows the static `/circle/join` route,
+          // so we pass the token as a query param the in-app screen can
+          // read. The path-style universal link (B) takes over once the
+          // next build ships.
+          var openBtn = document.getElementById("open-app-btn");
+          openBtn.href = "cadence://circle/join?token=" + encodeURIComponent(token);
+
+          // Copy-to-clipboard with a graceful fallback for browsers that
+          // don't have the async Clipboard API exposed in non-HTTPS contexts.
+          var copyBtn = document.getElementById("copy-btn");
+          var flash = document.getElementById("copied-flash");
+          copyBtn.addEventListener("click", function () {
+            var done = function () {
+              flash.classList.add("is-visible");
+              setTimeout(function () { flash.classList.remove("is-visible"); }, 1600);
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(token).then(done, function () {
+                fallbackCopy(token); done();
+              });
+            } else {
+              fallbackCopy(token); done();
+            }
+          });
+        } else {
+          document.getElementById("invalid-state").hidden = false;
+        }
+
+        function fallbackCopy(text) {
+          var ta = document.createElement("textarea");
+          ta.value = text;
+          ta.setAttribute("readonly", "");
+          ta.style.position = "absolute";
+          ta.style.left = "-9999px";
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand("copy"); } catch (e) {}
+          document.body.removeChild(ta);
+        }
+      })();
+    </script>
+  </body>
+</html>
