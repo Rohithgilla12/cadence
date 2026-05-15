@@ -1,6 +1,6 @@
 import { IconX } from '@tabler/icons-react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   Alert,
@@ -20,9 +20,9 @@ import { queryKeys } from '@/lib/api/queryKeys';
 import { apiClient } from '@/lib/client';
 import { colors, screenPaddingX } from '@/theme/tokens';
 
-// Accepts either the raw 20-char token or a full invite URL (universal link
-// will eventually be e.g. https://cadence.gilla.fun/circle/join/<token>).
-// We extract the last path segment if it looks URL-ish — friendlier paste.
+// Accepts either the raw 20-char token or a full invite URL (the universal
+// link form is https://cadence.gilla.fun/circle/join/<token>). We extract
+// the last path segment if it looks URL-ish — friendlier paste.
 function extractToken(raw: string): string {
   const trimmed = raw.trim();
   if (trimmed.includes('/')) {
@@ -36,7 +36,16 @@ export default function JoinCircleScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const [raw, setRaw] = useState('');
+  // The optional `token` query param is set by two upstream paths:
+  // (1) the static landing page's "Open Cadence" button, which uses
+  // `cadence://circle/join?token=<token>` against the existing custom
+  // scheme handler, and (2) the deep-link route at app/circle/join/
+  // [token].tsx, which redirects path-style universal links here. Either
+  // way, the user lands on this screen with the input pre-filled and
+  // just confirms with the Join button — keeps the auth/onboarding gates
+  // and error surfaces in one place.
+  const params = useLocalSearchParams<{ token?: string }>();
+  const [raw, setRaw] = useState(params.token ?? '');
 
   const joinMutation = useMutation({
     mutationFn: () => endpoints.joinCircle(apiClient)(extractToken(raw)),

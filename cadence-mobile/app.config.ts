@@ -39,6 +39,13 @@ const config: ExpoConfig = {
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
     },
+    // Universal Links. iOS fetches /.well-known/apple-app-site-association
+    // from cadence.gilla.fun on install and verifies this app's claim over
+    // /circle/join/* URLs. Once verified, taps on those URLs open the app
+    // directly without bouncing through Safari. The static declaration
+    // here lets EAS's capability syncer enable Associated Domains on the
+    // App ID — same mechanism as HealthKit / Push below.
+    associatedDomains: ["applinks:cadence.gilla.fun"],
     // Declared statically (not via a withEntitlementsPlist modifier) so EAS
     // Build's capability syncer detects HealthKit and enables it on the
     // provisioning profile. See https://github.com/expo/eas-cli/issues/2117
@@ -65,6 +72,28 @@ const config: ExpoConfig = {
     },
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
+    // Android App Links. autoVerify drives the OS to fetch
+    // /.well-known/assetlinks.json from cadence.gilla.fun at install
+    // and grant this app the right to open https URLs under
+    // /circle/join/*. The assetlinks.json currently ships with a
+    // placeholder fingerprint — verification will fail until we drop in
+    // the real production keystore SHA-256, at which point taps on
+    // invite links open the app directly. Until then the links still
+    // work via the static landing page.
+    intentFilters: [
+      {
+        action: "VIEW",
+        autoVerify: true,
+        category: ["BROWSABLE", "DEFAULT"],
+        data: [
+          {
+            scheme: "https",
+            host: "cadence.gilla.fun",
+            pathPrefix: "/circle/join",
+          },
+        ],
+      },
+    ],
   },
   web: {
     favicon: "./assets/favicon.png",

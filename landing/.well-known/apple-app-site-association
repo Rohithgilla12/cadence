@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["7D2V3RM56T.fun.gilla.cadence"],
+        "components": [
+          {
+            "/": "/circle/join/*",
+            "comment": "Cadence circle invite deep links"
+          }
+        ]
+      }
+    ]
+  }
+}

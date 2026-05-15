@@ -19,10 +19,11 @@ import { apiClient } from '@/lib/client';
 import { colors } from '@/theme/tokens';
 import type { ApiFeedItem, ApiPact, ApiPactProgress } from '@/lib/api/types';
 
-// Universal-link domain. Resolves to a server endpoint that will route
-// friends straight to the join screen once they install the app. The
-// token-only path works today even without that endpoint live — paste-the-
-// link still lands on /circle/join via the join screen's extractToken().
+// Universal Link / App Link base. Tapping the full URL on a phone with
+// Cadence installed routes through app/circle/join/[token].tsx → the
+// manual paste screen with the input pre-filled. Without the app, the
+// URL hits the static landing at landing/circle/join/ which shows the
+// code + a TestFlight install link.
 const INVITE_BASE_URL = 'https://cadence.gilla.fun/circle/join';
 
 function isCurrent(pact: ApiPact, now: Date = new Date()): boolean {
