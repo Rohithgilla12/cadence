@@ -1,10 +1,16 @@
+import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { colors } from '@/theme/tokens';
 
 interface LineChoiceProps {
   label: string;
-  description?: string;
+  // Description can be a string (rendered as the default body-sm
+  // caption) or a custom node when callers need to compose richer
+  // metadata — e.g. the practices step wants a time + auto-detect
+  // badge in one line and styles the badge differently from the
+  // surrounding caption.
+  description?: React.ReactNode;
   selected: boolean;
   onPress: () => void;
   // 'radio' for one-of-many (intent), 'check' for many-of-many
@@ -50,9 +56,13 @@ export function LineChoice({ label, description, selected, onPress, mode = 'radi
             {label}
           </Text>
           {description ? (
-            <Text className="mt-1 text-body-sm text-ink-2 leading-relaxed">
-              {description}
-            </Text>
+            typeof description === 'string' ? (
+              <Text className="mt-1 text-body-sm text-ink-2 leading-relaxed">
+                {description}
+              </Text>
+            ) : (
+              <View className="mt-1">{description}</View>
+            )
           ) : null}
         </View>
       </View>

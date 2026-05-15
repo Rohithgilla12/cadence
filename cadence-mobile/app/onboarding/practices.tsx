@@ -61,6 +61,12 @@ export default function PracticesScreen() {
           icon: habit.icon,
           timeOfDay: habit.timeOfDay,
           trackContext: true,
+          // Carrying the source link from the suggestion means a
+          // user who picks "Morning run" gets auto-detection wired
+          // on day one — no second trip into habit settings. PRD §9
+          // (auto-detect on every health sync) kicks in once the
+          // habit lands in the DB.
+          sourceLink: habit.sourceLink,
         });
       }
     },
@@ -81,10 +87,15 @@ export default function PracticesScreen() {
     return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
   }
 
+  // Two-clause subtitle. The first half is the teaching moment — it
+  // sets the user up to *understand* what the bullets below mean,
+  // before they're asked to pick. The second half is the gentle
+  // "don't pick everything" guidance the screen has had since v0.
+  // Both stay in body voice; no extra cards or banners.
   const subtitle =
     suggestions.length === 0
       ? "We'll surface suggestions once your pillars are set. You can add practices from Today."
-      : 'Two or three is plenty for the first week. You can always add more.';
+      : 'Some practices Cadence watches in your Apple Health; others you tap to log. Two or three is plenty to start.';
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -112,7 +123,7 @@ export default function PracticesScreen() {
                 key={habit.id}
                 mode="check"
                 label={habit.name}
-                description={timeOfDayLabel(habit.timeOfDay)}
+                description={<PracticeMeta habit={habit} />}
                 selected={selected.has(habit.id)}
                 onPress={() => toggle(habit.id)}
               />
@@ -145,6 +156,28 @@ export default function PracticesScreen() {
           onPress={() => finishMutation.mutate()}
         />
       </View>
+    </View>
+  );
+}
+
+// PracticeMeta is the small caption beneath each suggested practice.
+// One line, dot-separated. The auto-detect half is tinted moss so the
+// distinction reads at a glance without raising a banner or badge —
+// "show, don't tell" per the onboarding skill, "no shadows for
+// importance" per DS §1.
+function PracticeMeta({ habit }: { habit: SuggestedHabit }) {
+  const time = timeOfDayLabel(habit.timeOfDay);
+  return (
+    <View className="flex-row flex-wrap items-center">
+      <Text className="text-body-sm text-ink-2">{time}</Text>
+      {habit.sourceLink ? (
+        <>
+          <Text className="text-body-sm text-ink-3"> · </Text>
+          <Text className="text-body-sm text-moss">
+            Auto-detected from Apple Health
+          </Text>
+        </>
+      ) : null}
     </View>
   );
 }
