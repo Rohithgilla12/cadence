@@ -61,22 +61,36 @@ export function IconPicker({ value, onChange }: IconPickerProps) {
             accessibilityRole="radio"
             accessibilityState={{ selected }}
             accessibilityLabel={label}
+            // Selection contrast pass: the previous treatment
+            // (mossBg + 0.5px mossLight border + moss icon) was so
+            // close to the unselected card surface that picking an
+            // icon left users uncertain anything had happened.
+            //
+            // New treatment, still in tokens — no new colors, no
+            // shadows (DS §1 rules hold):
+            //   • bg: mossBg2 (E3EBD9) — a clearly deeper wash than
+            //     the bare card surface
+            //   • border: 1px moss (not 0.5px mossLight) — the
+            //     single visible weight bump readable at a glance
+            //   • icon: moss → solid green; ink3 when unselected
+            //     so the saturation jump is dramatic
+            // Unselected stays calm: paper card + hairline.
             style={({ pressed }) => ({
               width: 56,
               height: 56,
               borderRadius: 14,
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: selected ? colors.mossBg : colors.card,
-              borderWidth: 0.5,
-              borderColor: selected ? colors.mossLight : colors.hairline,
+              backgroundColor: selected ? colors.mossBg2 : colors.card,
+              borderWidth: selected ? 1 : 0.5,
+              borderColor: selected ? colors.moss : colors.hairline,
               opacity: pressed && !selected ? 0.85 : 1,
             })}
           >
             <Icon
               size={22}
-              color={selected ? colors.moss : colors.ink2}
-              strokeWidth={1.5}
+              color={selected ? colors.moss : colors.ink3}
+              strokeWidth={selected ? 1.75 : 1.5}
             />
           </Pressable>
         );
