@@ -32,5 +32,7 @@
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
 	<string>1:358093874155:ios:3c1fd08bcf6afa6c57afae</string>
+	<key>WEB_CLIENT_ID</key>
+	<string>358093874155-c576otcdsiel0djds9lam8934evc9krg.apps.googleusercontent.com</string>
 </dict>
 </plist>
