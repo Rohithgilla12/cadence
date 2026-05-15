@@ -34,14 +34,17 @@ That's the kind of thing the app surfaces. Observational, not prescriptive. Surf
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/readme-shots/today.png" alt="Today screen" /></td>
-    <td width="50%"><img src="docs/readme-shots/run.png" alt="Run detail with sleep context" /></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/readme-shots/reflect.png" alt="Weekly Reflect with pattern card" /></td>
-    <td width="50%"><img src="docs/readme-shots/circles.png" alt="Sunday runners circle with a pact" /></td>
+    <td width="33%"><img src="docs/readme-shots/pillar-i-watches.png" alt="I · Watches itself — Today screen with auto-detected morning run" /></td>
+    <td width="33%"><img src="docs/readme-shots/pillar-ii-patterns.png" alt="II · Surfaces patterns — Reflect screen with rendered insight" /></td>
+    <td width="33%"><img src="docs/readme-shots/pillar-iii-circles.png" alt="III · Small circles — Sunday runners with a pact and flower reactions" /></td>
   </tr>
 </table>
+
+Three things to know:
+
+1. **Watches itself.** Apple Health knows you ran — Cadence ticks the practice and pairs it with last night's sleep. No manual logging for anything your watch already records.
+2. **Surfaces patterns.** After about two weeks, plain-English insights appear. Deterministic templates, not LLM hallucinations. Observational, never prescriptive.
+3. **Small circles.** Two or three friends, a shared weekly pact, a single flower for showing up. No leaderboards, no public feed.
 
 The full pitch videos live in [`videos/out/`](videos/out/) — `cadence-twitter.mp4` (16:9) and `cadence-story.mp4` (9:16).
 

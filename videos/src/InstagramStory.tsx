@@ -7,23 +7,25 @@ import { PhoneScene } from "./components/PhoneScene";
 import { Wordmark } from "./components/Wordmark";
 import { CirclesScreen } from "./components/screens/CirclesScreen";
 import { ReflectScreen } from "./components/screens/ReflectScreen";
-import { RunDetailScreen } from "./components/screens/RunDetailScreen";
 import { TodayScreen } from "./components/screens/TodayScreen";
 import { colors } from "./tokens";
 import { sans, serif } from "./fonts";
 
 // 1080x1920 (9:16) — Instagram Story / Reel canvas. 18s at 30fps → 540
-// frames. Vertical: caption on top, phone centered below. The phone is
-// scaled up because we have the height to spare.
+// frames. Same three-pillar pitch as the Twitter version; vertical
+// stack: numeral · pillar eyebrow + serif headline above, phone
+// centered below. No body line on Story — vertical space is for the
+// phone, the headline carries the claim.
 export const InstagramStory: React.FC = () => {
   const { fps } = useVideoConfig();
   const second = (s: number) => Math.round(s * fps);
 
   const phoneScale = 1.55;
 
-  const scene = (
+  const pillarScene = (
     children: React.ReactNode,
-    eyebrow: string,
+    numeral: string,
+    pillar: string,
     headline: string,
   ) => (
     <div
@@ -51,7 +53,7 @@ export const InstagramStory: React.FC = () => {
             fontWeight: 500,
           }}
         >
-          {eyebrow}
+          {numeral} · {pillar}
         </span>
       </FadeText>
       <div style={{ height: 20 }} />
@@ -69,7 +71,7 @@ export const InstagramStory: React.FC = () => {
           {headline}
         </span>
       </FadeText>
-      <div style={{ height: 60 }} />
+      <div style={{ height: 56 }} />
       <PhoneScene scale={phoneScale} delay={second(0.1)}>
         {children}
       </PhoneScene>
@@ -106,69 +108,54 @@ export const InstagramStory: React.FC = () => {
                 textAlign: "center",
               }}
             >
-              A quiet habit tracker
-              <br />
-              for runners and the
-              <br />
-              quietly committed.
+              Three things to know.
             </span>
           </FadeText>
         </div>
       </Sequence>
 
-      {/* 2.5 – 6s · Today */}
+      {/* 2.5 – 7s · I · Watches itself */}
       <Sequence
         from={second(2.5)}
-        durationInFrames={second(3.5)}
+        durationInFrames={second(4.5)}
         premountFor={second(0.6)}
         layout="none"
       >
-        {scene(
+        {pillarScene(
           <TodayScreen />,
-          "Today",
-          "Habits, paired with\nwhat your watch knows.",
+          "I",
+          "Watches itself",
+          "Cadence reads\nyour watch.",
         )}
       </Sequence>
 
-      {/* 6 – 9.5s · Run detail */}
+      {/* 7 – 11.5s · II · Surfaces patterns */}
       <Sequence
-        from={second(6)}
-        durationInFrames={second(3.5)}
+        from={second(7)}
+        durationInFrames={second(4.5)}
         premountFor={second(0.6)}
         layout="none"
       >
-        {scene(
-          <RunDetailScreen />,
-          "Run · in context",
-          "Every run, beside\nlast night's sleep.",
-        )}
-      </Sequence>
-
-      {/* 9.5 – 13s · Reflect */}
-      <Sequence
-        from={second(9.5)}
-        durationInFrames={second(3.5)}
-        premountFor={second(0.6)}
-        layout="none"
-      >
-        {scene(
+        {pillarScene(
           <ReflectScreen />,
-          "Reflect",
-          "After two weeks,\npatterns surface.",
+          "II",
+          "Surfaces patterns",
+          "Plain-English\ninsights.",
         )}
       </Sequence>
 
-      {/* 13 – 15.5s · Circles */}
+      {/* 11.5 – 15.5s · III · Small circles */}
       <Sequence
-        from={second(13)}
-        durationInFrames={second(2.5)}
+        from={second(11.5)}
+        durationInFrames={second(4)}
         premountFor={second(0.6)}
         layout="none"
       >
-        {scene(
+        {pillarScene(
           <CirclesScreen />,
-          "Circles",
-          "Small circles.\nNo leaderboards.",
+          "III",
+          "Small circles",
+          "Three friends.\nOne pact.",
         )}
       </Sequence>
 

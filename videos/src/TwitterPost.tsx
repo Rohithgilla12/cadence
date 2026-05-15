@@ -7,26 +7,30 @@ import { PhoneScene } from "./components/PhoneScene";
 import { Wordmark } from "./components/Wordmark";
 import { CirclesScreen } from "./components/screens/CirclesScreen";
 import { ReflectScreen } from "./components/screens/ReflectScreen";
-import { RunDetailScreen } from "./components/screens/RunDetailScreen";
 import { TodayScreen } from "./components/screens/TodayScreen";
 import { colors } from "./tokens";
 import { sans, serif } from "./fonts";
 
 // 1920x1080 (16:9) — Twitter inline-video canvas. 16 seconds at 30fps
-// → 480 frames. Magazine-style layout: phone right, caption left.
+// → 480 frames. Three-pillar pitch:
+//   I  · Watches itself  → Today screen
+//   II · Surfaces patterns → Reflect screen
+//   III · Small circles  → Circles screen
+// Each pillar is a magazine spread: roman-numeral eyebrow + pillar
+// name, serif headline that *claims* the differentiator, body line
+// that grounds the claim in mechanics. Phone on the right.
 export const TwitterPost: React.FC = () => {
   const { fps } = useVideoConfig();
   const second = (s: number) => Math.round(s * fps);
 
-  // Mid-canvas Y for the phone column. PHONE_HEIGHT = 864 (after scale 1).
-  // We scale phones to 1.05 in landscape for legibility, height 907.
   const phoneScale = 1.05;
 
-  const scene = (
+  const pillarScene = (
     children: React.ReactNode,
-    eyebrow: string,
+    numeral: string,
+    pillar: string,
     headline: string,
-    sub?: string,
+    body: string,
   ) => (
     <div
       style={{
@@ -47,7 +51,7 @@ export const TwitterPost: React.FC = () => {
           paddingRight: 60,
           display: "flex",
           flexDirection: "column",
-          gap: 22,
+          gap: 24,
         }}
       >
         <FadeText delay={0}>
@@ -61,37 +65,35 @@ export const TwitterPost: React.FC = () => {
               fontWeight: 500,
             }}
           >
-            {eyebrow}
+            {numeral} · {pillar}
           </span>
         </FadeText>
         <FadeText delay={second(0.2)}>
           <span
             style={{
               fontFamily: serif,
-              fontSize: 64,
+              fontSize: 60,
               color: colors.ink,
               fontWeight: 500,
-              lineHeight: 1.15,
+              lineHeight: 1.12,
             }}
           >
             {headline}
           </span>
         </FadeText>
-        {sub && (
-          <FadeText delay={second(0.5)}>
-            <span
-              style={{
-                fontFamily: serif,
-                fontStyle: "italic",
-                fontSize: 30,
-                color: colors.ink2,
-                lineHeight: 1.4,
-              }}
-            >
-              {sub}
-            </span>
-          </FadeText>
-        )}
+        <FadeText delay={second(0.5)}>
+          <span
+            style={{
+              fontFamily: serif,
+              fontStyle: "italic",
+              fontSize: 26,
+              color: colors.ink2,
+              lineHeight: 1.45,
+            }}
+          >
+            {body}
+          </span>
+        </FadeText>
       </div>
       <div
         style={{
@@ -110,8 +112,8 @@ export const TwitterPost: React.FC = () => {
 
   return (
     <AbsoluteFill style={{ background: colors.bg }}>
-      {/* 0 – 2.5s · brand intro */}
-      <Sequence from={second(0)} durationInFrames={second(2.5)} layout="none">
+      {/* 0 – 2s · brand intro */}
+      <Sequence from={second(0)} durationInFrames={second(2)} layout="none">
         <div
           style={{
             position: "absolute",
@@ -123,83 +125,71 @@ export const TwitterPost: React.FC = () => {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            gap: 36,
+            gap: 28,
           }}
         >
           <BrandMark size={180} />
-          <Wordmark fontSize={132} delay={second(0.5)} />
-          <FadeText delay={second(1.0)}>
+          <Wordmark fontSize={132} delay={second(0.4)} />
+          <FadeText delay={second(0.9)}>
             <span
               style={{
                 fontFamily: serif,
                 fontStyle: "italic",
-                fontSize: 36,
+                fontSize: 32,
                 color: colors.ink2,
               }}
             >
-              A quiet habit tracker.
+              Three things to know.
             </span>
           </FadeText>
         </div>
       </Sequence>
 
-      {/* 2.5 – 5.5s · Today */}
+      {/* 2 – 6s · I · Watches itself */}
       <Sequence
-        from={second(2.5)}
-        durationInFrames={second(3)}
+        from={second(2)}
+        durationInFrames={second(4)}
         premountFor={second(0.6)}
         layout="none"
       >
-        {scene(
+        {pillarScene(
           <TodayScreen />,
-          "Today",
-          "Habits, with the data\nyour watch already has.",
-          "Auto-detected runs, sleep, mood — no double-logging.",
+          "I",
+          "Watches itself",
+          "Cadence reads\nyour watch.",
+          "Apple Health knows you ran. Cadence ticks the practice and pairs it with last night's sleep — no manual logging.",
         )}
       </Sequence>
 
-      {/* 5.5 – 8.5s · Run detail */}
+      {/* 6 – 10s · II · Surfaces patterns */}
       <Sequence
-        from={second(5.5)}
-        durationInFrames={second(3)}
+        from={second(6)}
+        durationInFrames={second(4)}
         premountFor={second(0.6)}
         layout="none"
       >
-        {scene(
-          <RunDetailScreen />,
-          "Run · in context",
-          "Every run, paired\nwith last night's sleep.",
-          "Heart-rate zones, HRV, and the morning that made it possible.",
-        )}
-      </Sequence>
-
-      {/* 8.5 – 11.5s · Reflect */}
-      <Sequence
-        from={second(8.5)}
-        durationInFrames={second(3)}
-        premountFor={second(0.6)}
-        layout="none"
-      >
-        {scene(
+        {pillarScene(
           <ReflectScreen />,
-          "Reflect · after two weeks",
-          "The patterns surface\nwithout you asking.",
-          "Plain-English insights. Observational, not prescriptive.",
+          "II",
+          "Surfaces patterns",
+          "Plain-English\ninsights.",
+          "After about two weeks, the patterns surface. Deterministic templates, p<0.05, observational — never fabricated.",
         )}
       </Sequence>
 
-      {/* 11.5 – 13.5s · Circles */}
+      {/* 10 – 13.5s · III · Small circles */}
       <Sequence
-        from={second(11.5)}
-        durationInFrames={second(2)}
+        from={second(10)}
+        durationInFrames={second(3.5)}
         premountFor={second(0.6)}
         layout="none"
       >
-        {scene(
+        {pillarScene(
           <CirclesScreen />,
-          "Circles",
-          "Small circles.\nNo leaderboards.",
-          "Three friends, a shared pact, a quiet feed.",
+          "III",
+          "Small circles",
+          "Three friends.\nOne pact.",
+          "A single flower for showing up. No leaderboards, no public feed.",
         )}
       </Sequence>
 
@@ -229,7 +219,7 @@ export const TwitterPost: React.FC = () => {
             <span
               style={{
                 fontFamily: serif,
-                fontSize: 64,
+                fontSize: 60,
                 color: colors.ink,
                 fontWeight: 500,
                 textAlign: "center",
@@ -238,7 +228,7 @@ export const TwitterPost: React.FC = () => {
               iOS beta open.
             </span>
           </FadeText>
-          <FadeText delay={second(0.7)}>
+          <FadeText delay={second(0.6)}>
             <span
               style={{
                 fontFamily: sans,
