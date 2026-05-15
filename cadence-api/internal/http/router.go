@@ -56,13 +56,12 @@ func NewRouter(deps Deps) http.Handler {
 	r.Get("/health", Health(deps.Pool))
 
 	r.Route("/v1", func(r chi.Router) {
-		// Strava OAuth callback + webhook live INSIDE /v1 but BEFORE the
-		// auth middleware is applied — Strava and the user's browser
-		// can't carry our Bearer token, and the state token / verify
-		// token / event body schema do the binding instead. Registering
-		// these on the parent router with chi.Get("/v1/...") instead of
-		// here triggers chi's radix tree to route them through the /v1
-		// sub-router anyway (prefix conflict), which then auths them.
+		// Strava OAuth callback + webhook live INSIDE /v1 but OUTSIDE the
+		// auth-gated Group below — Strava and the user's browser can't
+		// carry our Bearer token. The state token / verify token / event
+		// body schema do the binding instead. chi requires all r.Use
+		// calls on a mux before any r.Method calls; the Group below
+		// scopes the auth middleware to just the protected routes.
 		if deps.Strava != nil {
 			stravaPub := newStravaHandler(deps.Strava, deps.StravaWebhookVerifyToken)
 			r.Get("/strava/callback", stravaPub.callback)
@@ -70,79 +69,81 @@ func NewRouter(deps Deps) http.Handler {
 			r.Post("/webhooks/strava", stravaPub.webhookEvent)
 		}
 
-		r.Use(auth.RequireAuth(deps.Verifier, deps.Resolver))
-		r.Get("/me", GetMe)
-		r.Patch("/me", PatchMe(deps.Users))
-		r.Delete("/me", DeleteMe(deps.Users))
+		r.Group(func(r chi.Router) {
+			r.Use(auth.RequireAuth(deps.Verifier, deps.Resolver))
+			r.Get("/me", GetMe)
+			r.Patch("/me", PatchMe(deps.Users))
+			r.Delete("/me", DeleteMe(deps.Users))
 
-		habits := newHabitsHandler(deps.Habits, deps.HabitLogs, deps.Feed)
-		r.Get("/habits", habits.list)
-		r.Post("/habits", habits.create)
-		r.Patch("/habits/{id}", habits.update)
-		r.Post("/habits/{id}/toggle", habits.toggle)
-		r.Post("/habits/{id}/skip", habits.skip)
-		r.Delete("/habits/{id}", habits.archive)
+			habits := newHabitsHandler(deps.Habits, deps.HabitLogs, deps.Feed)
+			r.Get("/habits", habits.list)
+			r.Post("/habits", habits.create)
+			r.Patch("/habits/{id}", habits.update)
+			r.Post("/habits/{id}/toggle", habits.toggle)
+			r.Post("/habits/{id}/skip", habits.skip)
+			r.Delete("/habits/{id}", habits.archive)
 
-		checkIns := newCheckInHandler(deps.CheckIns)
-		r.Get("/check-ins/{date}", checkIns.get)
-		r.Put("/check-ins/{date}", checkIns.put)
+			checkIns := newCheckInHandler(deps.CheckIns)
+			r.Get("/check-ins/{date}", checkIns.get)
+			r.Put("/check-ins/{date}", checkIns.put)
 
-		dailySums := newDailySumHandler(deps.DailySummaries)
-		r.Put("/daily-summaries/{date}", dailySums.put)
-		r.Post("/daily-summaries/bulk", dailySums.bulk)
+			dailySums := newDailySumHandler(deps.DailySummaries)
+			r.Put("/daily-summaries/{date}", dailySums.put)
+			r.Post("/daily-summaries/bulk", dailySums.bulk)
 
-		if deps.InsightEngine != nil && deps.Insights != nil {
-			insights := newInsightsHandler(deps.InsightEngine, deps.Insights, deps.DailySummaries)
-			r.Get("/insights/today", insights.today)
-			r.Get("/insights", insights.list)
-			r.Post("/insights/compute", insights.compute)
-		}
+			if deps.InsightEngine != nil && deps.Insights != nil {
+				insights := newInsightsHandler(deps.InsightEngine, deps.Insights, deps.DailySummaries)
+				r.Get("/insights/today", insights.today)
+				r.Get("/insights", insights.list)
+				r.Post("/insights/compute", insights.compute)
+			}
 
-		if deps.Circles != nil {
-			circles := newCirclesHandler(deps.Circles)
-			r.Get("/circles", circles.list)
-			r.Post("/circles", circles.create)
-			r.Get("/circles/{id}", circles.get)
-			r.Post("/circles/join/{token}", circles.join)
-		}
+			if deps.Circles != nil {
+				circles := newCirclesHandler(deps.Circles)
+				r.Get("/circles", circles.list)
+				r.Post("/circles", circles.create)
+				r.Get("/circles/{id}", circles.get)
+				r.Post("/circles/join/{token}", circles.join)
+			}
 
-		if deps.Pacts != nil {
-			pacts := newPactsHandler(deps.Pacts)
-			r.Post("/circles/{id}/pacts", pacts.create)
-			r.Get("/circles/{id}/pacts", pacts.listForCircle)
-			r.Post("/pacts/{id}/complete", pacts.complete)
-		}
+			if deps.Pacts != nil {
+				pacts := newPactsHandler(deps.Pacts)
+				r.Post("/circles/{id}/pacts", pacts.create)
+				r.Get("/circles/{id}/pacts", pacts.listForCircle)
+				r.Post("/pacts/{id}/complete", pacts.complete)
+			}
 
-		if deps.Feed != nil {
-			feedH := newFeedHandler(deps.Feed)
-			r.Get("/circles/{id}/feed", feedH.listForCircle)
-			r.Post("/feed/{id}/reactions/toggle", feedH.toggleReaction)
-		}
+			if deps.Feed != nil {
+				feedH := newFeedHandler(deps.Feed)
+				r.Get("/circles/{id}/feed", feedH.listForCircle)
+				r.Post("/feed/{id}/reactions/toggle", feedH.toggleReaction)
+			}
 
-		if deps.Reflect != nil {
-			reflectH := newReflectHandler(deps.Reflect)
-			r.Get("/reflect/rhythm", reflectH.rhythm)
-			r.Get("/reflect/heatmap", reflectH.heatmap)
-		}
+			if deps.Reflect != nil {
+				reflectH := newReflectHandler(deps.Reflect)
+				r.Get("/reflect/rhythm", reflectH.rhythm)
+				r.Get("/reflect/heatmap", reflectH.heatmap)
+			}
 
-		if deps.Devices != nil {
-			devicesH := newDevicesHandler(deps.Devices, deps.PushSender)
-			r.Put("/me/devices", devicesH.register)
-			r.Delete("/me/devices/{token}", devicesH.unregister)
-			r.Post("/me/devices/test", devicesH.test)
-		}
+			if deps.Devices != nil {
+				devicesH := newDevicesHandler(deps.Devices, deps.PushSender)
+				r.Put("/me/devices", devicesH.register)
+				r.Delete("/me/devices/{token}", devicesH.unregister)
+				r.Post("/me/devices/test", devicesH.test)
+			}
 
-		if deps.Strava != nil {
-			stravaH := newStravaHandler(deps.Strava, deps.StravaWebhookVerifyToken)
-			// User-scoped paths live under /v1/me/strava/* so they don't
-			// share a prefix with /v1/strava/callback (which is registered
-			// on the parent router because Strava can't carry our Bearer).
-			// chi's radix tree otherwise routes /v1/strava/* through this
-			// auth-gated sub-router and 401s the unauthenticated callback.
-			r.Post("/me/strava/connect", stravaH.connect)
-			r.Get("/me/strava/status", stravaH.status)
-			r.Delete("/me/strava/connection", stravaH.disconnect)
-		}
+			if deps.Strava != nil {
+				stravaH := newStravaHandler(deps.Strava, deps.StravaWebhookVerifyToken)
+				// User-scoped paths live under /v1/me/strava/* so they don't
+				// share a prefix with /v1/strava/callback (which is registered
+				// on the parent router because Strava can't carry our Bearer).
+				// chi's radix tree otherwise routes /v1/strava/* through this
+				// auth-gated sub-router and 401s the unauthenticated callback.
+				r.Post("/me/strava/connect", stravaH.connect)
+				r.Get("/me/strava/status", stravaH.status)
+				r.Delete("/me/strava/connection", stravaH.disconnect)
+			}
+		})
 	})
 
 	return r
