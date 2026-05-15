@@ -225,7 +225,34 @@ export const endpoints = {
     client
       .request<{ heatmap: ApiHeatmap }>(`/v1/reflect/heatmap?windowDays=${windowDays}`)
       .then((r) => r.heatmap),
+
+  // Strava (PRD §9). Connect kicks off the OAuth flow — the server
+  // generates a state token and returns the Strava authorize URL we
+  // open in a WebBrowser. Status reports whether the user has an
+  // active grant + minimal athlete profile for the Settings card.
+  // Disconnect tears the connection down (server deletes encrypted
+  // tokens + best-effort revokes server-side at Strava).
+  stravaConnect: (client: ApiClient) => () =>
+    client
+      .request<{ authorizeUrl: string }>('/v1/me/strava/connect', {
+        method: 'POST',
+      })
+      .then((r) => r.authorizeUrl),
+
+  stravaStatus: (client: ApiClient) => () =>
+    client.request<StravaStatus>('/v1/me/strava/status'),
+
+  stravaDisconnect: (client: ApiClient) => () =>
+    client.request<void>('/v1/me/strava/connection', { method: 'DELETE' }),
 };
+
+export interface StravaStatus {
+  connected: boolean;
+  athleteId?: number;
+  athleteName?: string;
+  athleteAvatarUrl?: string;
+  connectedAt?: string;
+}
 
 // Mirrors the Go putDailySumRequest. All fields optional — client uploads
 // whatever it has and the server preserves anything not supplied.

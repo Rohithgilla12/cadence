@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 
 import { HealthConnectCard } from '@/components/health/HealthConnectCard';
+import { StravaConnectCard } from '@/components/health/StravaConnectCard';
 import { Screen, SectionLabel } from '@/components/layout';
 import { Avatar, Card } from '@/components/primitives';
 import { endpoints } from '@/lib/api';
@@ -181,7 +182,10 @@ export default function YouScreen() {
       </Pressable>
 
       <SectionLabel label="INTEGRATIONS" />
-      <HealthConnectCard status={healthStatus} />
+      <View className="gap-2">
+        <HealthConnectCard status={healthStatus} />
+        <StravaConnectCard />
+      </View>
 
       <SectionLabel label="PERSONAL" />
       <View className="gap-2">
