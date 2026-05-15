@@ -42,6 +42,14 @@ services:
       DATABASE_URL: postgres://cadence:${POSTGRES_PASSWORD}@postgres:5432/cadence?sslmode=disable
       FIREBASE_CREDENTIALS: /etc/cadence/firebase-admin.json
       SENTRY_DSN: ${SENTRY_DSN:-}
+      # Strava integration (PRD §9). All five must be set together; if any
+      # is empty the API still boots but the Strava routes 503. See
+      # ../DEPLOY.md §4b for one-time app registration + webhook subscribe.
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
+      STRAVA_CLIENT_ID: ${STRAVA_CLIENT_ID:-}
+      STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET:-}
+      STRAVA_TOKEN_ENCRYPTION_KEY: ${STRAVA_TOKEN_ENCRYPTION_KEY:-}
+      STRAVA_WEBHOOK_VERIFY_TOKEN: ${STRAVA_WEBHOOK_VERIFY_TOKEN:-}
     volumes:
       # Bind-mount the Firebase service account JSON from the host. Path on
       # the VPS is documented in DEPLOY.md.
