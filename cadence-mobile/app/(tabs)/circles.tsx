@@ -1,6 +1,7 @@
 import { IconChevronRight, IconPlus, IconUsersGroup } from '@tabler/icons-react-native';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { Screen, SectionLabel } from '@/components/layout';
@@ -13,6 +14,15 @@ import type { ApiCircle } from '@/lib/api/types';
 
 export default function CirclesScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: queryKeys.circles });
+    setRefreshing(false);
+  }, [queryClient]);
+
   const circlesQuery = useQuery({
     queryKey: queryKeys.circles,
     queryFn: endpoints.listCircles(apiClient),

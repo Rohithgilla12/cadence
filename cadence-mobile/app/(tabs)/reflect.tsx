@@ -1,6 +1,6 @@
 import { IconFlame, IconSparkles } from '@tabler/icons-react-native';
-import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
 import { ConsistencyHeatmap, RhythmBars } from '@/components/charts';
@@ -32,6 +32,15 @@ const LISTENING_INSIGHT: Insight = {
 };
 
 export default function ReflectScreen() {
+  const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await queryClient.invalidateQueries();
+    setRefreshing(false);
+  }, [queryClient]);
+
   const habitsQuery = useQuery({
     queryKey: queryKeys.habits,
     queryFn: endpoints.listHabits(apiClient),
@@ -65,7 +74,7 @@ export default function ReflectScreen() {
   );
 
   return (
-    <Screen scroll>
+    <Screen scroll refreshing={refreshing} onRefresh={onRefresh}>
       <Text className="text-body-sm text-ink-3">Weekly mirror</Text>
       <Text className="text-h1 font-serif text-ink mt-0.5">Reflect</Text>
 

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
 import { Button } from '@/components/primitives';
@@ -79,6 +79,14 @@ const uploadedFingerprints = new Set<string>();
 export default function TodayScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await queryClient.invalidateQueries();
+    setRefreshing(false);
+  }, [queryClient]);
+
   const habitsQuery = useQuery({
     queryKey: queryKeys.habits,
     queryFn: endpoints.listHabits(apiClient),
@@ -297,7 +305,7 @@ export default function TodayScreen() {
   }, [dailySummaryQuery.data, habitsQuery.data, todayIso, autodetectMutation]);
 
   return (
-    <Screen scroll>
+    <Screen scroll refreshing={refreshing} onRefresh={onRefresh}>
       <View>
         <Text className="text-body-sm text-ink-3">{greeting()}</Text>
         <Text className="text-h1 font-serif text-ink mt-0.5">{todayLabel()}</Text>

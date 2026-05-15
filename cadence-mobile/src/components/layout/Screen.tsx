@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, View, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { screenPaddingX } from '@/theme/tokens';
 
@@ -7,11 +7,13 @@ interface ScreenProps {
   children: React.ReactNode;
   scroll?: boolean;
   className?: string;
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }
 
 // Top padding = safe area top inset + 20px breathing room per DS §4.
 // Horizontal padding uses the deliberate 22px value from tokens.
-export function Screen({ children, scroll = true, className = '' }: ScreenProps) {
+export function Screen({ children, scroll = true, className = '', onRefresh, refreshing }: ScreenProps) {
   const insets = useSafeAreaInsets();
   const topPadding = insets.top + 20;
 
@@ -26,6 +28,11 @@ export function Screen({ children, scroll = true, className = '' }: ScreenProps)
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ ...sharedStyle, paddingBottom: 96 }}
+          refreshControl={
+            onRefresh ? (
+              <RefreshControl refreshing={refreshing ?? false} onRefresh={onRefresh} />
+            ) : undefined
+          }
         >
           {children}
         </ScrollView>

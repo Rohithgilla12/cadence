@@ -48,6 +48,13 @@ export default function YouScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await queryClient.invalidateQueries();
+    setRefreshing(false);
+  }, [queryClient]);
+
   const meQuery = useQuery({
     queryKey: queryKeys.me,
     queryFn: endpoints.getMe(apiClient),
@@ -153,7 +160,7 @@ export default function YouScreen() {
   const email = me?.email || user?.email || '';
 
   return (
-    <Screen>
+    <Screen refreshing={refreshing} onRefresh={onRefresh}>
       <Text className="font-serif text-h1 text-ink">You</Text>
 
       <Pressable
