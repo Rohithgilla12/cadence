@@ -6,8 +6,16 @@ import {
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { Platform } from 'react-native';
 
-export function configureGoogleSignIn(webClientId: string) {
-  GoogleSignin.configure({ webClientId });
+// `autoDetect` tells the library to read the Web OAuth client ID from
+// google-services.json on Android and from GoogleService-Info.plist on
+// iOS (requires a <key>WEB_CLIENT_ID</key> entry there). The value isn't
+// a secret — it ships embedded in those config files anyway — so we
+// don't route it through env vars where a missing var silently produces
+// a build with a broken sign-in button. v14+ of the library supports
+// this; we're on v16, so it works without further setup on Android. For
+// iOS, ensure GoogleService-Info.plist carries the WEB_CLIENT_ID key.
+export function configureGoogleSignIn() {
+  GoogleSignin.configure({ webClientId: 'autoDetect' });
 }
 
 export async function signInWithGoogle(): Promise<void> {

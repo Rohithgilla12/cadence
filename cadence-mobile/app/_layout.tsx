@@ -18,10 +18,10 @@ import { apiClient } from '@/lib/client';
 import { QueryProvider } from '@/lib/query';
 import { colors } from '@/theme/tokens';
 
-const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-if (webClientId) {
-  configureGoogleSignIn(webClientId);
-}
+// Configure once at module load. The helper uses `webClientId: 'autoDetect'`
+// internally, so the Web OAuth client ID is read from google-services.json
+// (Android) / GoogleService-Info.plist (iOS) — no env var to forget.
+configureGoogleSignIn();
 
 // Aptabase boot. Idempotent and safe to call at module load — the SDK
 // only starts the flush timer here, and tracked events accumulate
