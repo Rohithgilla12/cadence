@@ -166,8 +166,13 @@ func (r *Repository) ListMembers(ctx context.Context, circleID, callerID uuid.UU
 	if !ok {
 		return nil, ErrNotFound
 	}
+	// COALESCE on display_name — social sign-ins (Apple in particular)
+	// can land users with NULL display_name until they save the profile
+	// screen. Member.DisplayName is non-nullable string, so scanning
+	// NULL into it returns an error and the handler 500s. Empty string
+	// is the right UI fallback; the mobile renders the avatar initials.
 	rows, err := r.pool.Query(ctx, `
-		SELECT m.circle_id, m.user_id, u.display_name, m.joined_at, m.role
+		SELECT m.circle_id, m.user_id, COALESCE(u.display_name, '') AS display_name, m.joined_at, m.role
 		FROM circle_members m
 		JOIN users u ON u.id = m.user_id
 		WHERE m.circle_id = $1

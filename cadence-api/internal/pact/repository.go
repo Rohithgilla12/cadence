@@ -155,11 +155,13 @@ func (r *Repository) ListForCircleWithProgress(
 		ids[i] = p.ID
 	}
 	progressRows, err := r.pool.Query(ctx, `
-		SELECT pp.pact_id, pp.user_id, u.display_name, pp.completed, pp.completed_at
+		SELECT pp.pact_id, pp.user_id,
+		       COALESCE(u.display_name, '') AS display_name,
+		       pp.completed, pp.completed_at
 		FROM pact_progress pp
 		JOIN users u ON u.id = pp.user_id
 		WHERE pp.pact_id = ANY($1)
-		ORDER BY u.display_name
+		ORDER BY u.display_name NULLS LAST
 	`, ids)
 	if err != nil {
 		return nil, fmt.Errorf("query progress: %w", err)

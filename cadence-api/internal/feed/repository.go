@@ -93,7 +93,9 @@ func (r *Repository) ListForCircle(
 	}
 	rows, err := r.pool.Query(ctx, `
 		SELECT
-			i.id, i.circle_id, i.user_id, u.display_name, i.kind, i.payload,
+			i.id, i.circle_id, i.user_id,
+			COALESCE(u.display_name, '') AS display_name,
+			i.kind, i.payload,
 			i.note, i.created_at,
 			COALESCE(r.cnt, 0) AS reaction_count,
 			COALESCE(vr.viewer_reacted, false) AS viewer_reacted
