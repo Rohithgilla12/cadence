@@ -75,11 +75,9 @@ const config: ExpoConfig = {
     // Android App Links. autoVerify drives the OS to fetch
     // /.well-known/assetlinks.json from cadence.gilla.fun at install
     // and grant this app the right to open https URLs under
-    // /circle/join/*. The assetlinks.json currently ships with a
-    // placeholder fingerprint — verification will fail until we drop in
-    // the real production keystore SHA-256, at which point taps on
-    // invite links open the app directly. Until then the links still
-    // work via the static landing page.
+    // /circle/join/*. assetlinks.json carries the production keystore
+    // SHA-256 (alias 07cdfcb...). Verified taps open the app directly;
+    // unverified ones still fall back through the static landing page.
     intentFilters: [
       {
         action: "VIEW",
