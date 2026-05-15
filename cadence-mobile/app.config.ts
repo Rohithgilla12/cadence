@@ -119,8 +119,22 @@ const config: ExpoConfig = {
         ios: {
           useFrameworks: "static",
         },
+        android: {
+          // Health Connect requires Android 8.0 (API 26). Expo SDK 54's
+          // default minSdkVersion is 24; bumping is safe — sub-2% of
+          // in-market Android devices are pre-26, and none of those are
+          // running a habits app paired with Health Connect.
+          minSdkVersion: 26,
+        },
       },
     ],
+    // react-native-health-connect — Android-only Health Connect wrapper.
+    // Its config plugin appends the permission-rationale intent-filter
+    // to MainActivity, which Google Play uses to surface the app in
+    // Health Connect's permissions UI. iOS bundle never sees this lib
+    // (autolinking config + Metro platform-extension dispatch in
+    // src/lib/health/).
+    "react-native-health-connect",
     [
       "@kingstinct/react-native-healthkit",
       {

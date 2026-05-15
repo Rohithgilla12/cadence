@@ -4,8 +4,10 @@ import { endpoints } from '@/lib/api';
 import type { DailySummaryUpload } from '@/lib/api';
 import { apiClient } from '@/lib/client';
 
-import { readDailySummary } from './appleHealth';
-import { isAvailable } from './appleHealth';
+// Imports through the _native indirection so this file works unchanged on
+// both platforms — _native.ts resolves to appleHealth on iOS,
+// healthConnect on Android (Metro picks via the .android.ts override).
+import { isAvailable, readDailySummary } from './_native';
 
 // Retroactive HealthKit import — the fix for the 14-day cold start.
 //
@@ -27,8 +29,8 @@ const KEY_IMPORT_DAYS = 'cadence.health_import.days';
 export const DEFAULT_IMPORT_DAYS = 30;
 
 export interface ImportResult {
-  read: number;       // how many local days produced any data
-  uploaded: number;   // how many rows the server confirmed
+  read: number; // how many local days produced any data
+  uploaded: number; // how many rows the server confirmed
 }
 
 export interface ImportProgress {
@@ -98,9 +100,7 @@ function hasAnyData(upload: DailySummaryUpload): boolean {
 // onboarding screen won't re-trigger it. The server upsert is itself
 // idempotent (same COALESCE semantics as the per-day PUT), so a
 // re-import after a manual clear is also safe.
-export async function importHistoricalHealth(
-  options: ImportOptions = {},
-): Promise<ImportResult> {
+export async function importHistoricalHealth(options: ImportOptions = {}): Promise<ImportResult> {
   const { daysBack = DEFAULT_IMPORT_DAYS, onProgress } = options;
   if (!isAvailable()) {
     return { read: 0, uploaded: 0 };
