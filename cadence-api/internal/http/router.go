@@ -131,9 +131,14 @@ func NewRouter(deps Deps) http.Handler {
 
 		if deps.Strava != nil {
 			stravaH := newStravaHandler(deps.Strava, deps.StravaWebhookVerifyToken)
-			r.Post("/strava/connect", stravaH.connect)
-			r.Get("/strava/status", stravaH.status)
-			r.Delete("/strava/connection", stravaH.disconnect)
+			// User-scoped paths live under /v1/me/strava/* so they don't
+			// share a prefix with /v1/strava/callback (which is registered
+			// on the parent router because Strava can't carry our Bearer).
+			// chi's radix tree otherwise routes /v1/strava/* through this
+			// auth-gated sub-router and 401s the unauthenticated callback.
+			r.Post("/me/strava/connect", stravaH.connect)
+			r.Get("/me/strava/status", stravaH.status)
+			r.Delete("/me/strava/connection", stravaH.disconnect)
 		}
 	})
 
