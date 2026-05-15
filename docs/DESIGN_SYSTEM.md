@@ -444,7 +444,7 @@ Cadence is small but must be usable.
 - **Touch targets:** minimum 44x44pt. Smaller-looking elements (like the small streak pill) must have padding extending the tappable area.
 - **Color contrast:** body text on bg meets WCAG AA. The moss-on-cream combo passes. The dust avatars are decorative; the initial inside meets contrast against the dust background.
 - **Reduce Motion:** respect the iOS Reduce Motion setting. Disable the recovery card breathing, the insight card translate, and the pact dot bounce. Fades remain.
-- **Reduce Transparency:** the moss-bg insight card has solid color fallback. No blur-behind effects in v1.
+- **Reduce Transparency:** the moss-bg insight card has solid color fallback. No custom blur-behind effects in v1. The one exception is the iOS tab bar, which uses the native `UIVisualEffectView` system chrome material (Liquid Glass on iOS 26) — `UIKit` honors Reduce Transparency for this view automatically, so no manual fallback is needed.
 
 ---
 
@@ -549,7 +549,7 @@ The non-goals of the design system. These are as important as the dos.
 - **No emoji as UI.** Mood is a 5-dot scale, not 😢 😐 😊. Reactions are a flower icon, not 👍.
 - **No gradients on text.** No "rainbow" or shifting gradients on titles. The serif on a calm background is enough.
 - **No drop shadows on text.** Ever.
-- **No glassmorphism, neumorphism, or skeuomorphism.** Cadence is flat with hairlines.
+- **No glassmorphism, neumorphism, or skeuomorphism.** Cadence is flat with hairlines. The one exception is the iOS tab bar's native system chrome material — that is platform convention, not custom styling, and is exempt from this rule.
 - **No badges with numbers > 99.** If you're showing "127," you're already wrong somewhere.
 - **No "PRO" labels visible to users in v1.** Monetization is deferred. Don't pre-design a paywall UX.
 - **No progress bars that fill to 100% with celebration.** Cadence does not celebrate completion in a Duolingo way. Progress is shown as collective dots, not bars.
